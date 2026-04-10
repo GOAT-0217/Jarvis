@@ -22,14 +22,17 @@ class ConversationStorage:
 
     @staticmethod
     def _messages_cache_key(user_id: str, session_id: str) -> str:
+        # 结合用户和会话ID生成消息缓存键
         return f"chat_messages:{user_id}:{session_id}"
 
     @staticmethod
     def _sessions_cache_key(user_id: str) -> str:
+        # 仅根据用户ID生成会话列表缓存键，便于在缓存系统中隔离和检索不同维度的聊天数据。
         return f"chat_sessions:{user_id}"
 
     @staticmethod
     def _to_langchain_messages(records: list[dict]) -> list:
+        # 该函数将字典列表转换为LangChain消息对象
         messages = []
         for msg_data in records:
             msg_type = msg_data.get("type")
@@ -44,6 +47,13 @@ class ConversationStorage:
 
     def save(self, user_id: str, session_id: str, messages: list, metadata: dict = None, extra_message_data: list = None):
         """保存对话"""
+        """
+        该函数用于持久化对话数据：
+            1.校验用户并获取或创建会话；
+            2.清空旧消息，批量插入新消息及RAG追踪信息；
+            3.更新会话时间并提交事务；
+            4.同步更新缓存，确保数据库与缓存一致性。
+        """
         db = SessionLocal()
         try:
             user = db.query(User).filter(User.username == user_id).first()
@@ -113,6 +123,11 @@ class ConversationStorage:
         return [item["session_id"] for item in self.list_session_infos(user_id)]
 
     def list_session_infos(self, user_id: str) -> list[dict]:
+        """
+        该函数获取用户会话列表。
+            先查缓存，命中则直接返回；
+            未命中则查询数据库，按更新时间倒序获取会话及消息数，组装结果后写入缓存并返回，确保资源释放。
+        """
         cached = cache.get_json(self._sessions_cache_key(user_id))
         if cached is not None:
             return cached
@@ -145,6 +160,12 @@ class ConversationStorage:
             db.close()
 
     def get_session_messages(self, user_id: str, session_id: str) -> list[dict]:
+        """
+        该函数获取会话消息：
+            先查缓存，命中则直接返回；
+            未命中则查询数据库，校验用户和会话存在性后，按ID升序获取消息并格式化；
+            结果写入缓存后返回，确保最终关闭数据库连接。
+        """
         cached = cache.get_json(self._messages_cache_key(user_id, session_id))
         if cached is not None:
             return cached

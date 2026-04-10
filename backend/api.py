@@ -57,26 +57,41 @@ def _remove_bm25_stats_for_filename(filename: str) -> None:
 
 @router.post("/auth/register", response_model=AuthResponse)
 async def register(request: RegisterRequest, db: Session = Depends(get_db)):
+    """
+    该函数处理用户注册
+        1.校验用户名密码非空；
+        2.检查用户名是否已存在；
+        3.解析角色并创建新用户，哈希存储密码后存入数据库；
+        4.生成访问令牌，返回包含令牌、用户名及角色的认证响应
+    """
     username = (request.username or "").strip()
     password = (request.password or "").strip()
+    # 1.校验用户名密码非空；
     if not username or not password:
         raise HTTPException(status_code=400, detail="用户名和密码不能为空")
 
+    # 2.检查用户名是否已存在；
     exists = db.query(User).filter(User.username == username).first()
     if exists:
         raise HTTPException(status_code=409, detail="用户名已存在")
-
+    # 3.解析角色并创建新用户，哈希存储密码后存入数据库；
     role = resolve_role(request.role, request.admin_code)
     user = User(username=username, password_hash=get_password_hash(password), role=role)
     db.add(user)
     db.commit()
-
+    # 4.生成访问令牌，返回包含令牌、用户名及角色的认证响应
     token = create_access_token(username=username, role=role)
     return AuthResponse(access_token=token, username=username, role=role)
 
 
 @router.post("/auth/login", response_model=AuthResponse)
 async def login(request: LoginRequest, db: Session = Depends(get_db)):
+    """
+    该接口处理用户登录：
+        首先验证用户名和密码，失败则返回401错误；
+        成功后生成包含用户信息的JWT令牌；
+        最后返回包含令牌、用户名及角色的认证响应对象。
+    """
     user = authenticate_user(db, request.username, request.password)
     if not user:
         raise HTTPException(status_code=401, detail="用户名或密码错误")
@@ -86,6 +101,12 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
 
 @router.get("/auth/me", response_model=CurrentUserResponse)
 async def me(current_user: User = Depends(get_current_user)):
+    """
+    该接口通过依赖注入获取当前登录用户，
+        并返回包含用户名和角色的响应对象。
+    它用于让前端获取当前认证用户的简要身份信息，
+        确保只有已登录用户才能访问此受保护的路由。
+    """
     return CurrentUserResponse(username=current_user.username, role=current_user.role)
 
 
@@ -134,6 +155,11 @@ async def delete_session(session_id: str, current_user: User = Depends(get_curre
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest, current_user: User = Depends(get_current_user)):
+    """
+    该接口处理聊天请求：
+    获取会话ID并调用代理生成回复，封装为ChatResponse返回。
+    若异常，解析错误码：429提示限流，401/403及其他代码抛出对应HTTP异常，未匹配则报500错误，实现统一错误处理。
+    """
     try:
         session_id = request.session_id or "default_session"
         resp = chat_with_agent(request.message, current_user.username, session_id)
@@ -161,7 +187,12 @@ async def chat_endpoint(request: ChatRequest, current_user: User = Depends(get_c
 
 @router.post("/chat/stream")
 async def chat_stream_endpoint(request: ChatRequest, current_user: User = Depends(get_current_user)):
-    """跟 Agent 对话 (流式)"""
+    """跟 Agent 对话 (流式)
+        该函数实现流式聊天接口。
+        它定义异步生成器，调用chat_with_agent_stream逐块yield对话内容，
+        异常时返回错误JSON。
+        最终通过StreamingResponse以SSE格式返回数据，并设置禁用缓存和缓冲的头信息，确保实时推送
+    """
 
     async def event_generator():
         try:
@@ -185,9 +216,14 @@ async def chat_stream_endpoint(request: ChatRequest, current_user: User = Depend
 
 @router.get("/documents", response_model=DocumentListResponse)
 async def list_documents(_: User = Depends(require_admin)):
-    """获取已上传的文档列表（管理员）"""
+    """获取已上传的文档列表（管理员）
+        该接口为管理员获取文档列表。
+            1.首先初始化Milvus集合并查询文件名及类型；
+            2.随后遍历结果，按文件名聚合统计切片数量；
+            3.最后构建文档信息对象并返回响应。若出错则抛出500异常。
+    """
     try:
-        milvus_manager.init_collection()
+        milvus_manager.init_collection()     # 1
 
         results = milvus_manager.query(
             output_fields=["filename", "file_type"],
@@ -195,6 +231,7 @@ async def list_documents(_: User = Depends(require_admin)):
         )
 
         file_stats = {}
+        # 2
         for item in results:
             filename = item.get("filename", "")
             file_type = item.get("file_type", "")
@@ -205,7 +242,7 @@ async def list_documents(_: User = Depends(require_admin)):
                     "chunk_count": 0,
                 }
             file_stats[filename]["chunk_count"] += 1
-
+        # 3
         documents = [DocumentInfo(**stats) for stats in file_stats.values()]
         return DocumentListResponse(documents=documents)
     except Exception as e:
@@ -214,7 +251,12 @@ async def list_documents(_: User = Depends(require_admin)):
 
 @router.post("/documents/upload", response_model=DocumentUploadResponse)
 async def upload_document(file: UploadFile = File(...), _: User = Depends(require_admin)):
-    """上传文档并进行 embedding（管理员）"""
+    """上传文档并进行 embedding（管理员）
+        实现管理员上传文档功能：
+            校验文件类型后，先清理旧数据（含BM25统计、Milvus向量及父分块），
+            保存文件、解析内容并分级存储。
+            最终返回处理结果，确保数据一致性与检索有效性。
+    """
     try:
         filename = file.filename or ""
         file_lower = filename.lower()

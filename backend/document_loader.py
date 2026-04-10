@@ -38,6 +38,7 @@ class DocumentLoader:
 
     @staticmethod
     def _build_chunk_id(filename: str, page_number: int, level: int, index: int) -> str:
+        """该静态方法用于生成文档块的唯一标识符。"""
         return f"{filename}::p{page_number}::l{level}::{index}"
 
     def _split_page_to_three_levels(
@@ -46,6 +47,7 @@ class DocumentLoader:
         base_doc: Dict,
         page_global_chunk_idx: int,
     ) -> List[Dict]:
+        """该函数将文本递归拆分为三级块:"""
         if not text:
             return []
 
@@ -57,7 +59,7 @@ class DocumentLoader:
         level_1_counter = 0
         level_2_counter = 0
         level_3_counter = 0
-
+        # 1. 用一级分割器处理全文，生成根块
         for level_1_doc in level_1_docs:
             level_1_text = (level_1_doc.page_content or "").strip()
             if not level_1_text:
@@ -77,6 +79,7 @@ class DocumentLoader:
             page_global_chunk_idx += 1
             root_chunks.append(level_1_chunk)
 
+            # 2. 对每个一级块用二级分割器细分，建立父子关联；
             level_2_docs = self._splitter_level_2.create_documents([level_1_text], [base_doc])
             for level_2_doc in level_2_docs:
                 level_2_text = (level_2_doc.page_content or "").strip()
@@ -97,6 +100,7 @@ class DocumentLoader:
                 page_global_chunk_idx += 1
                 root_chunks.append(level_2_chunk)
 
+                # 3.对每个二级块用三级分割器再细分。
                 level_3_docs = self._splitter_level_3.create_documents([level_2_text], [base_doc])
                 for level_3_doc in level_3_docs:
                     level_3_text = (level_3_doc.page_content or "").strip()
@@ -114,7 +118,7 @@ class DocumentLoader:
                         "chunk_idx": page_global_chunk_idx,
                     })
                     page_global_chunk_idx += 1
-
+        # 4. 最终返回包含层级、ID及索引关系的扁平化块列表，用于构建文档层次结构
         return root_chunks
 
     def load_document(self, file_path: str, filename: str) -> list[dict]:
@@ -125,7 +129,7 @@ class DocumentLoader:
         :return: 分片后的文档列表
         """
         file_lower = filename.lower()
-
+        # 1.根据文件扩展名选择对应加载器解析PDF、Word或Excel文档。
         if file_lower.endswith(".pdf"):
             doc_type = "PDF"
             loader = PyPDFLoader(file_path)
@@ -137,7 +141,7 @@ class DocumentLoader:
             loader = UnstructuredExcelLoader(file_path)
         else:
             raise ValueError(f"不支持的文件类型: {filename}")
-
+        # 遍历原始文档页，提取元数据并调用分片方法将文本拆解为多级片段.
         try:
             raw_docs = loader.load()
             documents = []
@@ -156,6 +160,7 @@ class DocumentLoader:
                 )
                 page_global_chunk_idx += len(page_chunks)
                 documents.extend(page_chunks)
+            # 返回包含文件名、路径、类型及页码信息的结构化分片列表
             return documents
         except Exception as e:
             raise Exception(f"处理文档失败: {str(e)}")

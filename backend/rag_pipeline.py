@@ -20,6 +20,11 @@ _router_model = None
 
 
 def _get_grader_model():
+    """该函数实现评分模型的懒加载单例模式：
+        若缺少API密钥或模型名则返回None；
+        若全局变量未初始化，则调用init_chat_model创建OpenAI聊天模型实例并缓存；
+        最后返回该模型对象，确保仅初始化一次以复用资源。
+    """
     global _grader_model
     if not API_KEY or not GRADE_MODEL:
         return None
@@ -36,13 +41,18 @@ def _get_grader_model():
 
 
 def _get_router_model():
+    """该函数实现路由器模型的懒加载单例模式。
+    首先检查API密钥和模型配置，缺失则返回None。
+        若全局变量_router_model为空，则使用指定参数初始化Deepseek聊天模型并缓存，
+        最后返回该模型实例，避免重复创建。
+    """
     global _router_model
     if not API_KEY or not MODEL:
         return None
     if _router_model is None:
         _router_model = init_chat_model(
             model=MODEL,
-            model_provider="openai",
+            model_provider="deepseek",
             api_key=API_KEY,
             base_url=BASE_URL,
             temperature=0,
@@ -69,12 +79,13 @@ class GradeDocuments(BaseModel):
 
 
 class RewriteStrategy(BaseModel):
-    """Choose a query expansion strategy."""
+    """选择查询扩展策略"""
 
     strategy: Literal["step_back", "hyde", "complex"]
 
 
 class RAGState(TypedDict):
+    """定义了一个名为 RAGState 的类型字典，用于规范 RAG（检索增强生成）流程中的状态数据结构。"""
     question: str
     query: str
     context: str
@@ -89,6 +100,7 @@ class RAGState(TypedDict):
 
 
 def _format_docs(docs: List[dict]) -> str:
+    """该函数将文档列表格式化为字符串。"""
     if not docs:
         return ""
     chunks = []
@@ -101,11 +113,19 @@ def _format_docs(docs: List[dict]) -> str:
 
 
 def retrieve_initial(state: RAGState) -> RAGState:
+    """该函数执行初始检索:
+        提取查询,调用retrieve_documents获取文档及元数据；
+        利用`_format_docs将文档列表格式化为上下文字符串；
+        记录检索步骤日志；
+        构建包含查询、文档、上下文及详细追踪信息（如重排序、合并状态）的字典并返回。
+    """
     query = state["question"]
     emit_rag_step("🔍", "正在检索知识库...", f"查询: {query[:50]}")
     retrieved = retrieve_documents(query, top_k=5)
     results = retrieved.get("docs", [])
     retrieve_meta = retrieved.get("meta", {})
+
+    # 将文档列表格式化为上下文字符串
     context = _format_docs(results)
     emit_rag_step(
         "🧱",
@@ -156,6 +176,11 @@ def retrieve_initial(state: RAGState) -> RAGState:
 
 
 def grade_documents_node(state: RAGState) -> RAGState:
+    """该函数评估检索文档相关性：
+        获取评分模型，若缺失则直接返回重写路由。
+        调用模型判断文档是否相关。
+        根据评分决定路由：通过则生成答案，否则重写问题，并更新追踪日志返回结果。
+    """
     grader = _get_grader_model()
     emit_rag_step("📊", "正在评估文档相关性...")
     if not grader:
@@ -190,6 +215,11 @@ def grade_documents_node(state: RAGState) -> RAGState:
 
 
 def rewrite_question_node(state: RAGState) -> RAGState:
+    """该函数智能重写RAG查询：
+          调用路由器模型分析用户问题，动态选择step_back、hyde或complex策略。
+          根据策略执行退步提问或生成假设文档以扩展查询。
+          返回扩展后的查询及中间结果，优化检索效果。
+    """
     question = state["question"]
     emit_rag_step("✏️", "正在重写查询...")
     router = _get_router_model()
@@ -243,6 +273,7 @@ def rewrite_question_node(state: RAGState) -> RAGState:
 
 
 def retrieve_expanded(state: RAGState) -> RAGState:
+    """该函数根据策略（HyDE/Step-back）执行多路文档检索，合并结果并去重"""
     strategy = state.get("expansion_type") or "step_back"
     emit_rag_step("🔄", "使用扩展查询重新检索...", f"策略: {strategy}")
     results: List[dict] = []
@@ -332,6 +363,7 @@ def retrieve_expanded(state: RAGState) -> RAGState:
     for idx, item in enumerate(deduped, 1):
         item["rrf_rank"] = idx
 
+    """调用 _format_docs 将去重后的文档列表格式化为统一字符串作为上下文,同时记录检索元数据与追踪信息"""
     context = _format_docs(deduped)
     emit_rag_step("✅", f"扩展检索完成，共 {len(deduped)} 个片段")
     rag_trace = state.get("rag_trace", {}) or {}
@@ -358,17 +390,23 @@ def retrieve_expanded(state: RAGState) -> RAGState:
         "auto_merge_replaced_chunks": auto_merge_replaced_chunks,
         "auto_merge_steps": auto_merge_steps,
     })
+    # 返回处理后的文档、上下文及状态轨迹
     return {"docs": deduped, "context": context, "rag_trace": rag_trace}
 
 
 def build_rag_graph():
+    """该函数构建RAG工作流图"""
+    # 定义检索、评分、重写等节点
     graph = StateGraph(RAGState)
     graph.add_node("retrieve_initial", retrieve_initial)
     graph.add_node("grade_documents", grade_documents_node)
     graph.add_node("rewrite_question", rewrite_question_node)
     graph.add_node("retrieve_expanded", retrieve_expanded)
 
+    # 设置初始检索为入口
     graph.set_entry_point("retrieve_initial")
+
+    # 根据评分结果条件分支，生成答案则结束，否则重写问题并再次检索后结束。
     graph.add_edge("retrieve_initial", "grade_documents")
     graph.add_conditional_edges(
         "grade_documents",
@@ -380,6 +418,7 @@ def build_rag_graph():
     )
     graph.add_edge("rewrite_question", "retrieve_expanded")
     graph.add_edge("retrieve_expanded", END)
+    # 编译返回可执行图
     return graph.compile()
 
 
@@ -387,6 +426,10 @@ rag_graph = build_rag_graph()
 
 
 def run_rag_graph(question: str) -> dict:
+    """该函数接收用户问题，初始化包含查询、空上下文及各类中间状态（如路由、扩展类型等）的字典，
+        并调用 rag_graph.invoke 执行RAG工作流，
+        最终返回处理结果字典。
+    """
     return rag_graph.invoke({
         "question": question,
         "query": question,

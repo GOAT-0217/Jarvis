@@ -12,12 +12,20 @@ FRONTEND_DIR = BASE_DIR / "frontend"
 
 
 def create_app() -> FastAPI:
+    """
+    创建FastAPI应用，配置启动时初始化数据库，
+        添加允许跨域及开发环境禁用缓存的中间件，
+        注册API路由，并在前端目录存在时挂载静态文件服务，
+        最后返回配置好的应用实例。
+    """
     app = FastAPI(title="Cute Cat Bot API")
 
     @app.on_event("startup")
     async def _startup_init_db():
         init_db()
-
+    # CORS（Cross-Origin Resource Sharing，跨域资源共享）中间件是一种安全机制，
+    #   用于控制浏览器如何允许或阻止来自不同源（域名、协议或端口）的网页访问后端 API
+    # 解除跨域限制，让前端可以顺利与后端通信：
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -29,6 +37,11 @@ def create_app() -> FastAPI:
     # No-cache middleware for development
     @app.middleware("http")
     async def _no_cache(request, call_next):
+        """
+        定义了一个HTTP中间件，用于开发环境禁用缓存:
+            它拦截请求，对根路径及HTML、JS、CSS文件响应添加no-cache等头部信息，
+            强制浏览器不缓存这些资源，确保前端开发时能实时获取最新文件。
+        """
         response = await call_next(request)
         path = request.url.path or ""
         if path == "/" or path.endswith((".html", ".js", ".css")):

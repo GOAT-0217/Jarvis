@@ -3,6 +3,7 @@ from typing import Optional, List
 
 
 class RegisterRequest(BaseModel):
+    """注册请求。"""
     username: str
     password: str
     role: Optional[str] = "user"
@@ -10,11 +11,13 @@ class RegisterRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
+    """用于验证登录请求数据结构"""
     username: str
     password: str
 
 
 class AuthResponse(BaseModel):
+    """规范认证响应结构"""
     access_token: str
     token_type: str = "bearer"
     username: str
@@ -22,16 +25,19 @@ class AuthResponse(BaseModel):
 
 
 class CurrentUserResponse(BaseModel):
+    """标准化当前用户信息的响应结构"""
     username: str
     role: str
 
 
 class ChatRequest(BaseModel):
+    """用于规范聊天请求的数据结构及类型校验"""
     message: str
     session_id: Optional[str] = "default_session"
 
 
 class RetrievedChunk(BaseModel):
+    """用于结构化存储检索到的文本片段信息"""
     filename: str
     page_number: Optional[str | int] = None
     text: Optional[str] = None
@@ -41,6 +47,7 @@ class RetrievedChunk(BaseModel):
 
 
 class RagTrace(BaseModel):
+    """结构化记录RAG系统的完整执行轨迹"""
     tool_used: bool
     tool_name: str
     query: Optional[str] = None
@@ -74,11 +81,13 @@ class RagTrace(BaseModel):
 
 
 class ChatResponse(BaseModel):
+    """用于结构化聊天响应"""
     response: str
     rag_trace: Optional[RagTrace] = None
 
 
 class MessageInfo(BaseModel):
+    """结构化消息信息"""
     type: str
     content: str
     timestamp: str
@@ -86,25 +95,30 @@ class MessageInfo(BaseModel):
 
 
 class SessionMessagesResponse(BaseModel):
+    """结构化地表示会话中的多条消息响应数据"""
     messages: List[MessageInfo]
 
 
 class SessionInfo(BaseModel):
+    """结构化存储会话相关信息"""
     session_id: str
     updated_at: str
     message_count: int
 
 
 class SessionListResponse(BaseModel):
+    """结构化地表示会话列表响应数据，通常用于 API 接口的数据序列化与验证"""
     sessions: List[SessionInfo]
 
 
 class SessionDeleteResponse(BaseModel):
+    """用于 API 响应中结构化删除会话的结果数据"""
     session_id: str
     message: str
 
 
 class DocumentInfo(BaseModel):
+    """结构化文档元数据"""
     filename: str
     file_type: str
     chunk_count: int
@@ -112,16 +126,19 @@ class DocumentInfo(BaseModel):
 
 
 class DocumentListResponse(BaseModel):
+    """结构化地表示文档列表响应数据，通常配合 Pydantic 进行数据验证和序列化"""
     documents: List[DocumentInfo]
 
 
 class DocumentUploadResponse(BaseModel):
+    """用于结构化文档上传的响应结果"""
     filename: str
     chunks_processed: int
     message: str
 
 
 class DocumentDeleteResponse(BaseModel):
+    """用于结构化文档删除操作的响应数据。"""
     filename: str
     chunks_deleted: int
     message: str

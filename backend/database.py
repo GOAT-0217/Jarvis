@@ -16,6 +16,7 @@ Base = declarative_base()
 
 
 def init_db() -> None:
+    """初始化数据库"""
     # Delayed import to avoid circular dependency.
     import models  # noqa: F401
 

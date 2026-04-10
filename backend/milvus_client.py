@@ -20,6 +20,7 @@ class MilvusManager:
         self.client = None
 
     def _get_client(self) -> MilvusClient:
+        """该函数实现Milvus客户端的懒加载"""
         # Lazy-create client to avoid blocking app import/startup when Milvus is temporarily unavailable.
         if self.client is None:
             self.client = MilvusClient(uri=self.uri)
@@ -95,7 +96,7 @@ class MilvusManager:
         limit: int = 10000,
         offset: int = 0,
     ):
-        """查询数据。limit 不宜超过 QUERY_MAX_LIMIT。"""
+        """该函数封装了Milvus数据查询逻辑：查询数据。limit 不宜超过 QUERY_MAX_LIMIT。"""
         return self._get_client().query(
             collection_name=self.collection_name,
             filter=filter_expr,
@@ -105,7 +106,7 @@ class MilvusManager:
         )
 
     def query_all(self, filter_expr: str = "", output_fields: list[str] | None = None) -> list:
-        """分页拉取匹配 filter 的全部行，避免单次 limit 超过服务端窗口。"""
+        """通过循环分页查询Milvus数据：分页拉取匹配 filter 的全部行，避免单次 limit 超过服务端窗口。"""
         fields = output_fields or ["filename", "file_type"]
         out: list = []
         offset = 0
@@ -126,7 +127,7 @@ class MilvusManager:
         return out
 
     def get_chunks_by_ids(self, chunk_ids: list[str]) -> list[dict]:
-        """根据 chunk_id 批量查询分块（用于 Auto-merging 拉取父块）"""
+        """根据 chunk_id 批量查询分块（主要用于Auto-merging场景中拉取父块信息）"""
         ids = [item for item in chunk_ids if item]
         if not ids:
             return []
@@ -270,7 +271,7 @@ class MilvusManager:
         return formatted_results
 
     def delete(self, filter_expr: str):
-        """删除数据"""
+        """从Milvus集合中删除数据"""
         return self._get_client().delete(
             collection_name=self.collection_name,
             filter=filter_expr

@@ -30,6 +30,10 @@ _stepback_model = None
 
 
 def _get_rerank_endpoint() -> str:
+    """该函数用于构建重排序服务 endpoint:
+        若配置为空则返回空串；否则去除主机地址首尾空白及末尾斜杠，
+        若已含 /v1/rerank 后缀则直接返回，否则自动追加该后缀，确保 URL 格式规范。
+    """
     if not RERANK_BINDING_HOST:
         return ""
     host = RERANK_BINDING_HOST.strip().rstrip("/")
@@ -37,6 +41,13 @@ def _get_rerank_endpoint() -> str:
 
 
 def _merge_to_parent_level(docs: List[dict], threshold: int = 2) -> Tuple[List[dict], int]:
+    """该函数将子文档合并至父级：
+         按父ID分组，仅当子文档数达阈值时触发合并。
+         获取父文档，保留最高分并标记合并来源及子数量。
+         未满足条件的子文档保持原样。
+         最后对结果去重，返回合并后的文档列表及合并计数。
+    """
+    # 按父ID分组，仅当子文档数达阈值时触发合并
     groups: Dict[str, List[dict]] = defaultdict(list)
     for doc in docs:
         parent_id = (doc.get("parent_chunk_id") or "").strip()
@@ -49,6 +60,7 @@ def _merge_to_parent_level(docs: List[dict], threshold: int = 2) -> Tuple[List[d
 
     parent_docs = _parent_chunk_store.get_documents_by_ids(merge_parent_ids)
     parent_map = {item.get("chunk_id", ""): item for item in parent_docs if item.get("chunk_id")}
+
 
     merged_docs: List[dict] = []
     merged_count = 0
@@ -66,6 +78,7 @@ def _merge_to_parent_level(docs: List[dict], threshold: int = 2) -> Tuple[List[d
         merged_docs.append(parent_doc)
         merged_count += 1
 
+    # 用于对合并后的文档列表进行去重。
     deduped: List[dict] = []
     seen = set()
     for item in merged_docs:
@@ -79,6 +92,10 @@ def _merge_to_parent_level(docs: List[dict], threshold: int = 2) -> Tuple[List[d
 
 
 def _auto_merge_documents(docs: List[dict], top_k: int) -> Tuple[List[dict], Dict[str, Any]]:
+    """该函数执行两级文档自动合并（L3→L2→L1）。
+        若启用且输入非空，则调用 _merge_to_parent_level 进行两轮合并，按分数排序并截取 top_k。
+        最终返回合并后的文档列表及包含合并状态、替换数量和步骤数的统计信息。
+    """
     if not AUTO_MERGE_ENABLED or not docs:
         return docs[:top_k], {
             "auto_merge_enabled": AUTO_MERGE_ENABLED,
@@ -106,6 +123,7 @@ def _auto_merge_documents(docs: List[dict], top_k: int) -> Tuple[List[dict], Dic
 
 
 def _rerank_documents(query: str, docs: List[dict], top_k: int) -> Tuple[List[dict], Dict[str, Any]]:
+    """该函数对文档列表进行重排序。"""
     docs_with_rank = [{**doc, "rrf_rank": i} for i, doc in enumerate(docs, 1)]
     meta: Dict[str, Any] = {
         "rerank_enabled": bool(RERANK_MODEL and RERANK_API_KEY and RERANK_BINDING_HOST),
@@ -164,6 +182,11 @@ def _rerank_documents(query: str, docs: List[dict], top_k: int) -> Tuple[List[di
 
 
 def _get_stepback_model():
+    """该函数实现单例模式获取聊天模型:
+        首先检查API密钥和模型配置，缺失则返回None。
+        若全局变量未初始化，则调用init_chat_model创建Openai兼容模型实例并缓存，
+        最后返回该模型，确保重复调用时复用同一实例。
+    """
     global _stepback_model
     if not ARK_API_KEY or not MODEL:
         return None
@@ -179,6 +202,11 @@ def _get_stepback_model():
 
 
 def _generate_step_back_question(query: str) -> str:
+    """该函数通过单例获取聊天模型，若缺失则返回空。
+        它构建提示词，要求将用户具体问题抽象为概括性的“退步问题”。
+        随后调用模型生成结果并清洗返回；
+        若出错或无模型，均返回空字符串，旨在提取问题背后的核心概念。
+    """
     model = _get_stepback_model()
     if not model:
         return ""
@@ -194,6 +222,11 @@ def _generate_step_back_question(query: str) -> str:
 
 
 def _answer_step_back_question(step_back_question: str) -> str:
+    """该函数用于回答“退步问题”。
+        首先获取聊天模型实例，若模型或问题缺失则返回空。
+        接着构建提示词，要求模型提供简短的背景知识。
+        最后调用模型生成答案并去除空白，异常时返回空字符串，确保鲁棒性。
+    """
     model = _get_stepback_model()
     if not model or not step_back_question:
         return ""
@@ -209,6 +242,11 @@ def _answer_step_back_question(step_back_question: str) -> str:
 
 
 def generate_hypothetical_document(query: str) -> str:
+    """该函数利用单例模型生成“假设性文档”以辅助检索。
+        首先获取聊天模型，若缺失则返回空串；
+        接着构建提示词，要求模型基于用户问题生成仿真资料片段；
+        最后调用模型接口，安全地返回生成的文档正文，异常时返回空串。
+    """
     model = _get_stepback_model()
     if not model:
         return ""
@@ -225,6 +263,11 @@ def generate_hypothetical_document(query: str) -> str:
 
 
 def step_back_expand(query: str) -> dict:
+    """该函数实现“退步提问”策略：
+        先生成抽象的退步问题及其背景答案，
+        若成功则将其与原查询拼接以丰富上下文，否则保留原查询。
+        最终返回包含退步问题、答案及增强后查询的字典，用于提升检索或回答效果。
+    """
     step_back_question = _generate_step_back_question(query)
     step_back_answer = _answer_step_back_question(step_back_question)
     if step_back_question or step_back_answer:
@@ -243,6 +286,11 @@ def step_back_expand(query: str) -> dict:
 
 
 def retrieve_documents(query: str, top_k: int = 5) -> Dict[str, Any]:
+    """该函数实现文档检索，优先采用混合检索（稠密+稀疏），失败则降级为稠密检索。"""
+    """流程包括：
+        获取候选文档、调用 _rerank_documents 重排序、调用 _auto_merge_documents 自动合并，
+        最终返回处理后的文档及包含检索模式、重排与合并状态的元数据。
+    """
     candidate_k = max(top_k * 3, top_k)
     filter_expr = f"chunk_level == {LEAF_RETRIEVE_LEVEL}"
     try:

@@ -12,6 +12,7 @@ class ParentChunkStore:
 
     @staticmethod
     def _to_dict(item: ParentChunk) -> dict:
+        """该函数将 ParentChunk 对象转换为字典"""
         return {
             "text": item.text,
             "filename": item.filename,
@@ -27,6 +28,7 @@ class ParentChunkStore:
 
     @staticmethod
     def _cache_key(chunk_id: str) -> str:
+        """该函数用于生成缓存键"""
         return f"parent_chunk:{chunk_id}"
 
     def upsert_documents(self, docs: List[dict]) -> int:
@@ -83,6 +85,8 @@ class ParentChunkStore:
         return upserted
 
     def get_documents_by_ids(self, chunk_ids: List[str]) -> List[dict]:
+        """该函数根据ID列表获取文档:它先检查缓存，命中则直接读取；
+            未命中的ID批量查询数据库，并将结果写入缓存。最后按输入顺序返回存在的文档，确保数据一致性与查询效率。"""
         if not chunk_ids:
             return []
 
@@ -112,7 +116,11 @@ class ParentChunkStore:
         return [ordered_results[item] for item in chunk_ids if item in ordered_results]
 
     def delete_by_filename(self, filename: str) -> int:
-        """按文件名删除父级分块，返回删除条数。"""
+        """按文件名删除父级分块，返回删除条数。
+            先校验文件名，查询对应记录并提取ID。
+            若存在数据，则执行数据库删除并提交，同时清除相关缓存。
+            最后关闭数据库连接，返回被删除的记录数量；若文件名为空则直接返回0。
+        """
         if not filename:
             return 0
 

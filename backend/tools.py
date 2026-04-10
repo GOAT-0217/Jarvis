@@ -19,6 +19,7 @@ _RAG_STEP_LOOP = None   # asyncio loop, captured when setting queue
 
 
 def _set_last_rag_context(context: dict):
+    """用于更新全局变量 _LAST_RAG_CONTEXT"""
     global _LAST_RAG_CONTEXT
     _LAST_RAG_CONTEXT = context
 
