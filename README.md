@@ -466,7 +466,18 @@ StreamingResponse(
 
 ## 更新日志
 
-### 2026-04-08 本地嵌入与 BM25 持久化
+### v0.0.2 — 2026-07-13 语音输入与附件上传
+
+新增前端语音输入和附件上传能力，面向老人和不识字儿童等不方便打字的用户。
+
+- **语音输入**：基于浏览器 Web Speech API（`voice.js`），Chrome/Edge 原生支持。点击 🎤 切换语音模式，按住说话松手自动发送，点击 ⌨ 切回文字模式。
+- **视觉反馈**：四态交互（空闲 / 聆听中 / 识别中 / 错误），波纹动画 + 旋转加载 + 错误闪烁 + 提示音，用户无需识字即可感知状态。
+- **附件上传**：输入区 ＋ 按钮（管理员可见），点击选择文件直接上传 PDF / Word / Excel 到知识库，带进度条。
+- **错误降级**：权限拒绝或网络不可用时自动切回文字模式；不支持语音的浏览器隐藏 🎤 按钮。
+
+**改动范围**：纯前端（`frontend/voice.js` 新增，`script.js` / `index.html` / `style.css` 修改），后端未变。
+
+### 2026-04-08 v0.0.1 本地嵌入与 BM25 持久化
 - **稠密向量**：由兼容 API 改为 `langchain_huggingface` 本地模型（默认 `BAAI/bge-m3`），支持 `EMBEDDING_MODEL` / `EMBEDDING_DEVICE`；Milvus `dense_embedding` 维度与 `DENSE_EMBEDDING_DIM` 对齐（默认 1024）。
 - **BM25 统计**：`词表 vocab + 文档频次 doc_freq + 文档数 N` 持久化至 `data/bm25_state.json`（可选 `BM25_STATE_PATH`）；每个叶子 chunk 视为一篇文档，入库时 **increment_add**，删除文档或覆盖上传前按文件名从 Milvus 拉取 chunk 文本后 **increment_remove**；`embedding_service` 在 `api` 与 `rag_utils` 间单例共享，避免写入与检索状态分裂。
 - **Milvus 查询**：单次 `query` 的 `limit` 受服务端窗口限制（如 16384），新增 **`query_all`** 分页拉取，供删除/覆盖前取回全文以同步 BM25；修复单次 `limit=100000` 导致的 RPC 报错。
