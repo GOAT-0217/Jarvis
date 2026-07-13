@@ -388,6 +388,7 @@
                         v-show="!voiceMode"
                         v-model="userInput"
                         @keydown="handleKeyDown"
+                        @paste="handlePaste"
                         @compositionstart="handleCompositionStart"
                         @compositionend="handleCompositionEnd"
                         @input="autoResize"

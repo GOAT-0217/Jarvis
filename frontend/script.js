@@ -788,6 +788,29 @@ createApp({
 
         // ========== Attachment Upload Methods ==========
 
+        /** 粘贴事件处理 — 识别剪贴板中的图片并走附件 chip 流程 */
+        handlePaste(event) {
+            const items = event.clipboardData?.items;
+            if (!items) return;
+
+            for (const item of items) {
+                if (item.type.startsWith('image/')) {
+                    event.preventDefault();
+
+                    if (this.attachments.length >= 5) {
+                        alert('最多只能添加 5 个附件');
+                        return;
+                    }
+
+                    const file = item.getAsFile();
+                    if (!file) continue;
+
+                    const attachmentId = 'att_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+                    this._handleImageFile(file, attachmentId);
+                }
+            }
+        },
+
         /** 点击附件按钮 — 直接打开文件选择器 */
         handleAttachClick(event) {
             event.stopPropagation();
