@@ -366,10 +366,11 @@
             </div>
 
             <div class="input-area-wrapper">
-                <div class="input-area">
-                    <button class="attach-btn"><i class="fas fa-paperclip"></i></button>
-                    <textarea 
-                        v-model="userInput" 
+                <div class="input-area" :class="{ 'voice-active': voiceMode }">
+                    <!-- 文字输入模式 -->
+                    <textarea
+                        v-show="!voiceMode"
+                        v-model="userInput"
                         @keydown="handleKeyDown"
                         @compositionstart="handleCompositionStart"
                         @compositionend="handleCompositionEnd"
@@ -378,6 +379,93 @@
                         rows="1"
                         ref="textarea"
                     ></textarea>
+
+                    <!-- 语音输入区域（语音模式显示） -->
+                    <div
+                        v-show="voiceMode"
+                        class="voice-input-area"
+                        :class="voiceState"
+                        @pointerdown.prevent="handleVoicePointerDown"
+                        @pointerup.prevent="handleVoicePointerUp"
+                        @pointerleave.prevent="handleVoicePointerLeave"
+                        ref="voiceArea"
+                    >
+                        <template v-if="voiceState === 'idle'">
+                            <span class="voice-placeholder">按住说话...</span>
+                        </template>
+                        <template v-else-if="voiceState === 'listening'">
+                            <div class="voice-ripple-container">
+                                <div class="voice-ripple-ring"></div>
+                                <div class="voice-ripple-ring"></div>
+                                <div class="voice-ripple-ring"></div>
+                            </div>
+                            <span class="voice-placeholder">正在聆听...</span>
+                        </template>
+                        <template v-else-if="voiceState === 'processing'">
+                            <span class="voice-spinner"></span>
+                            <span class="voice-placeholder">识别中...</span>
+                        </template>
+                        <template v-else-if="voiceState === 'error'">
+                            <span class="voice-placeholder">{{ voiceErrorMsg }}</span>
+                        </template>
+                    </div>
+
+                    <!-- 实时识别文字浮层 -->
+                    <div v-if="voiceMode && interimText" class="voice-interim-text">
+                        {{ interimText }}
+                    </div>
+
+                    <!-- 按钮组 -->
+                    <div class="input-buttons">
+                        <!-- 语音模式：显示键盘按钮 -->
+                        <button
+                            v-if="voiceMode"
+                            class="keyboard-btn"
+                            @click="toggleVoiceMode"
+                            title="切换文字输入"
+                        >
+                            <i class="fas fa-keyboard"></i>
+                        </button>
+                        <!-- 文字模式：显示麦克风按钮 -->
+                        <button
+                            v-else-if="voiceSupported"
+                            class="mic-btn"
+                            @click="toggleVoiceMode"
+                            :disabled="isLoading || !isAuthenticated"
+                            title="切换语音输入"
+                        >
+                            <i class="fas fa-microphone"></i>
+                        </button>
+                        <!-- 加号按钮（仅管理员） -->
+                        <button
+                            v-if="isAdmin"
+                            class="plus-btn"
+                            @click="handleAttachClick"
+                            title="上传附件"
+                        >
+                            <i class="fas fa-plus"></i>
+                        </button>
+                        <!-- 附件上传隐藏 input -->
+                        <input
+                            v-if="isAdmin"
+                            type="file"
+                            ref="attachFileInput"
+                            class="attach-file-input"
+                            accept=".pdf,.doc,.docx,.xls,.xlsx"
+                            @change="handleAttachFileSelect"
+                        />
+                        <!-- 附件上传弹窗 -->
+                        <div v-if="isAdmin && showAttachMenu" class="attach-dropdown" @click.stop>
+                            <button @click="handleAttachFileClick">
+                                <i class="fas fa-file-alt"></i> 上传文档
+                            </button>
+                            <button @click="handleAttachImageClick">
+                                <i class="fas fa-image"></i> 上传图片
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 发送/终止按钮 -->
                     <button v-if="isLoading" @click="handleStop" class="send-btn stop-btn" title="终止回答">
                         <i class="fas fa-stop"></i>
                     </button>
@@ -392,6 +480,7 @@
         </main>
     </div>
 
+    <script src="voice.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
