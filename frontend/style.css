@@ -1285,3 +1285,287 @@ textarea::placeholder {
     color: var(--primary-color);
     font-weight: 600;
 }
+
+/* ============================================ */
+/* Voice Input & Attachment Styles              */
+/* ============================================ */
+
+/* ---- 输入区按钮组 ---- */
+.input-buttons {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.mic-btn,
+.keyboard-btn,
+.plus-btn {
+    background: none;
+    border: 1px solid rgba(94, 234, 212, 0.2);
+    color: var(--text-light);
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: var(--transition);
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.mic-btn:hover,
+.keyboard-btn:hover,
+.plus-btn:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    background-color: rgba(94, 234, 212, 0.08);
+}
+
+.mic-btn:disabled,
+.keyboard-btn:disabled,
+.plus-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* ---- 语音输入区域（文字模式隐藏） ---- */
+.voice-input-area {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    border-radius: 18px;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.25s ease, border-color 0.25s ease;
+    border: 2px dashed transparent;
+    position: relative;
+    overflow: hidden;
+}
+
+/* 空闲态 */
+.voice-input-area.idle {
+    background: rgba(94, 234, 212, 0.04);
+    border-color: rgba(94, 234, 212, 0.15);
+    color: var(--text-light);
+}
+
+.voice-input-area.idle:hover {
+    background: rgba(94, 234, 212, 0.08);
+    border-color: rgba(94, 234, 212, 0.3);
+}
+
+.voice-input-area .voice-placeholder {
+    font-size: 0.95rem;
+    color: var(--text-light);
+    opacity: 0.8;
+    pointer-events: none;
+}
+
+/* 聆听中 */
+.voice-input-area.listening {
+    background: rgba(248, 113, 113, 0.12);
+    border-color: rgba(248, 113, 113, 0.5);
+}
+
+.voice-input-area.listening .voice-placeholder {
+    color: #fca5a5;
+}
+
+/* 波纹动画容器 */
+.voice-ripple-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+.voice-ripple-ring {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin-left: -10px;
+    margin-top: -10px;
+    border-radius: 50%;
+    border: 2px solid rgba(248, 113, 113, 0.6);
+    animation: voiceRipple 1.5s ease-out infinite;
+    opacity: 0;
+}
+
+.voice-ripple-ring:nth-child(2) {
+    animation-delay: 0.5s;
+}
+
+.voice-ripple-ring:nth-child(3) {
+    animation-delay: 1.0s;
+}
+
+@keyframes voiceRipple {
+    0% {
+        width: 20px;
+        height: 20px;
+        margin-left: -10px;
+        margin-top: -10px;
+        opacity: 0.7;
+    }
+    100% {
+        width: 80px;
+        height: 80px;
+        margin-left: -40px;
+        margin-top: -40px;
+        opacity: 0;
+    }
+}
+
+/* 识别中 */
+.voice-input-area.processing {
+    background: rgba(167, 139, 250, 0.08);
+    border-color: rgba(167, 139, 250, 0.4);
+}
+
+.voice-input-area.processing .voice-placeholder {
+    color: #a78bfa;
+}
+
+/* 旋转加载（识别中） */
+.voice-spinner {
+    display: none;
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(167, 139, 250, 0.3);
+    border-top-color: #a78bfa;
+    border-radius: 50%;
+    animation: voiceSpin 0.8s linear infinite;
+    margin-right: 10px;
+}
+
+.voice-input-area.processing .voice-spinner {
+    display: inline-block;
+}
+
+.voice-input-area.processing .voice-placeholder {
+    display: inline;
+}
+
+@keyframes voiceSpin {
+    to { transform: rotate(360deg); }
+}
+
+/* 错误态 */
+.voice-input-area.error {
+    background: rgba(251, 191, 36, 0.08);
+    border-color: rgba(251, 191, 36, 0.5);
+    animation: errorFlash 0.4s ease 3;
+}
+
+.voice-input-area.error .voice-placeholder {
+    color: #fbbf24;
+}
+
+@keyframes errorFlash {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+
+/* ---- 实时识别文字浮层 ---- */
+.voice-interim-text {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(30, 36, 51, 0.95);
+    border: 1px solid rgba(94, 234, 212, 0.2);
+    border-radius: 12px;
+    padding: 8px 16px;
+    font-size: 0.9rem;
+    color: var(--text-color);
+    white-space: nowrap;
+    max-width: 90vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    animation: interimFadeIn 0.2s ease;
+}
+
+@keyframes interimFadeIn {
+    from { opacity: 0; transform: translateX(-50%) translateY(4px); }
+    to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ---- 语音模式时隐藏 textarea ---- */
+.input-area.voice-active textarea {
+    display: none;
+}
+
+.input-area.voice-active .voice-input-area {
+    display: flex;
+}
+
+/* ---- 默认隐藏语音区域 ---- */
+.voice-input-area {
+    display: none;
+}
+
+.input-area.voice-active .voice-input-area {
+    display: flex;
+}
+
+/* ---- 附件上传弹窗 ---- */
+.attach-dropdown {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    right: 0;
+    background: rgba(26, 31, 46, 0.98);
+    border: 1px solid rgba(94, 234, 212, 0.2);
+    border-radius: 14px;
+    padding: 8px;
+    min-width: 180px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    z-index: 30;
+    animation: attachSlideUp 0.2s ease;
+}
+
+@keyframes attachSlideUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.attach-dropdown button {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 14px;
+    border: none;
+    background: transparent;
+    color: var(--text-color);
+    font-size: 0.9rem;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.attach-dropdown button:hover {
+    background: rgba(94, 234, 212, 0.08);
+    color: var(--primary-color);
+}
+
+.attach-dropdown button i {
+    width: 18px;
+    text-align: center;
+    color: var(--primary-color);
+}
+
+/* ---- 隐藏的文件输入 ---- */
+.attach-file-input {
+    display: none;
+}
