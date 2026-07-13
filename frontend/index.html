@@ -415,6 +415,17 @@
                         {{ interimText }}
                     </div>
 
+                    <!-- 附件上传进度条 -->
+                    <div v-if="attachUploading" class="attach-progress-bar">
+                        <div class="progress-text-row">
+                            <span>{{ attachProgress }}</span>
+                            <span>{{ attachPercent }}%</span>
+                        </div>
+                        <div class="progress-bar-wrapper">
+                            <div class="progress-bar-fill" :style="{ width: attachPercent + '%' }"></div>
+                        </div>
+                    </div>
+
                     <!-- 按钮组 -->
                     <div class="input-buttons">
                         <!-- 语音模式：显示键盘按钮 -->
