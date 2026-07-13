@@ -351,8 +351,8 @@ createApp({
         },
 
         handleClearChat() {
-            this.attachments = [];
             if (confirm('确定要清空当前对话吗？主人？')) {
+                this.attachments = [];
                 this.messages = [];
             }
         },
@@ -863,6 +863,12 @@ createApp({
 
         /** 处理文档文件 — 上传到 /attachments/extract 提取文本 */
         _handleDocumentFile(file, attachmentId) {
+            // 检查大小（50MB 上限）
+            if (file.size > 50 * 1024 * 1024) {
+                alert('文档文件不能超过 50MB');
+                return;
+            }
+
             const chip = {
                 id: attachmentId,
                 type: 'text',
@@ -885,7 +891,7 @@ createApp({
                     try {
                         const data = JSON.parse(xhr.responseText);
                         chip.content = data.text;
-                        chip.status = data.char_count > 0 ? 'ready' : 'ready';
+                        chip.status = 'ready';
                         if (data.char_count === 0) {
                             chip.content = '(文件内容为空)';
                         }

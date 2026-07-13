@@ -54,6 +54,27 @@ parent_chunk_store = ParentChunkStore()
 milvus_manager = MilvusManager()
 milvus_writer = MilvusWriter(embedding_service=embedding_service, milvus_manager=milvus_manager)
 
+MAX_ATTACHMENTS = 5
+MAX_IMAGE_BASE64_SIZE = 20 * 1024 * 1024  # 20 MB per image base64 string
+
+
+def _validate_attachments(attachments: list | None) -> None:
+    """服务端校验附件数量与图片大小。"""
+    if not attachments:
+        return
+    if len(attachments) > MAX_ATTACHMENTS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"附件数量超过上限（最多 {MAX_ATTACHMENTS} 个）",
+        )
+    for att in attachments:
+        if att.type == "image" and len(att.content) > MAX_IMAGE_BASE64_SIZE:
+            raise HTTPException(
+                status_code=400,
+                detail=f"图片 {att.filename} 过大（最大 20MB base64）",
+            )
+
+
 router = APIRouter()
 
 
@@ -61,7 +82,7 @@ router = APIRouter()
 async def extract_attachment_text(file: UploadFile = File(...), current_user: User = Depends(get_current_user)):
     """提取上传文件的全文（不分块、不入库、不向量化）。
 
-    支持 PDF / Word / Excel。文件写入临时路径供加载器使用，提取后立即删除。
+    支持 PDF / Word (.docx) / Excel。文件写入临时路径供加载器使用，提取后立即删除。
     """
     filename = file.filename or ""
     file_lower = filename.lower()
@@ -71,30 +92,51 @@ async def extract_attachment_text(file: UploadFile = File(...), current_user: Us
 
     if not (
         file_lower.endswith(".pdf")
-        or file_lower.endswith((".docx", ".doc"))
+        or file_lower.endswith(".docx")
         or file_lower.endswith((".xlsx", ".xls"))
     ):
         raise HTTPException(
             status_code=400,
-            detail=f"不支持的文件类型。支持：PDF、Word (.docx/.doc)、Excel (.xlsx/.xls)",
+            detail=f"不支持的文件类型。支持：PDF、Word (.docx)、Excel (.xlsx/.xls)",
+        )
+
+    # 文件大小检查（50MB 上限）
+    MAX_EXTRACT_SIZE = 50 * 1024 * 1024  # 50 MB
+    if hasattr(file, "size") and file.size is not None and file.size > MAX_EXTRACT_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"文件过大（{file.size} bytes），附件提取上限为 50MB",
         )
 
     # 写入临时文件供加载器使用
     suffix = Path(filename).suffix or ".tmp"
-    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-        tmp.write(await file.read())
-        tmp_path = tmp.name
-
+    tmp_path = None
     try:
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+            # 分块读取，避免大文件占用过多内存，同时检查大小
+            total_read = 0
+            while True:
+                chunk = await file.read(1024 * 1024)  # 1MB chunks
+                if not chunk:
+                    break
+                total_read += len(chunk)
+                if total_read > MAX_EXTRACT_SIZE:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"文件过大（超过 {MAX_EXTRACT_SIZE // (1024*1024)}MB），附件提取上限为 50MB",
+                    )
+                tmp.write(chunk)
+            tmp_path = tmp.name
+
         # 根据类型选择加载器
         if file_lower.endswith(".pdf"):
-            loader = PyPDFLoader(tmp_path)
-        elif file_lower.endswith((".docx", ".doc")):
-            loader = Docx2txtLoader(tmp_path)
+            doc_loader = PyPDFLoader(tmp_path)
+        elif file_lower.endswith(".docx"):
+            doc_loader = Docx2txtLoader(tmp_path)
         else:
-            loader = UnstructuredExcelLoader(tmp_path)
+            doc_loader = UnstructuredExcelLoader(tmp_path)
 
-        docs = loader.load()
+        docs = doc_loader.load()
         # 拼接所有页面文本为全文
         full_text = "\n\n".join(
             (doc.page_content or "").strip() for doc in docs if (doc.page_content or "").strip()
@@ -105,14 +147,17 @@ async def extract_attachment_text(file: UploadFile = File(...), current_user: Us
             text=full_text,
             char_count=len(full_text),
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"文件提取失败: {str(e)}")
     finally:
-        # 清理临时文件
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
+        # 清理临时文件（无论成功或失败都会执行）
+        if tmp_path is not None:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
 
 
 def _remove_bm25_stats_for_filename(filename: str) -> None:
@@ -232,6 +277,7 @@ async def chat_endpoint(request: ChatRequest, current_user: User = Depends(get_c
     """
     try:
         session_id = request.session_id or "default_session"
+        _validate_attachments(request.attachments)
         resp = chat_with_agent(request.message, current_user.username, session_id, attachments=request.attachments)
         if isinstance(resp, dict):
             return ChatResponse(**resp)
@@ -267,6 +313,7 @@ async def chat_stream_endpoint(request: ChatRequest, current_user: User = Depend
     async def event_generator():
         try:
             session_id = request.session_id or "default_session"
+            _validate_attachments(request.attachments)
             async for chunk in chat_with_agent_stream(request.message, current_user.username, session_id, attachments=request.attachments):
                 yield chunk
         except Exception as e:

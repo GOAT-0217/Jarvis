@@ -82,11 +82,25 @@ class ConversationStorage:
                     extra = extra_message_data[idx] or {}
                     rag_trace = extra.get("rag_trace")
 
+                # 对多模态消息（content 为 list），只提取文本部分持久化，
+                # 避免 base64 图片数据泄漏到数据库，也避免 Python repr 乱码
+                content = msg.content
+                if isinstance(content, list):
+                    text_parts = []
+                    for block in content:
+                        if isinstance(block, dict) and block.get("type") == "text":
+                            text_parts.append(block.get("text", ""))
+                        elif isinstance(block, str):
+                            text_parts.append(block)
+                    content = "\n".join(text_parts) if text_parts else "(多模态消息，包含图片)"
+                else:
+                    content = str(content)
+
                 db.add(
                     ChatMessage(
                         session_ref_id=session.id,
                         message_type=msg.type,
-                        content=str(msg.content),
+                        content=content,
                         timestamp=now,
                         rag_trace=rag_trace,
                     )
@@ -94,7 +108,7 @@ class ConversationStorage:
                 serialized.append(
                     {
                         "type": msg.type,
-                        "content": str(msg.content),
+                        "content": content,
                         "timestamp": now.isoformat(),
                         "rag_trace": rag_trace,
                     }
@@ -303,6 +317,13 @@ def _build_user_message(user_text: str, attachments: list | None = None) -> Huma
     """
     if not attachments:
         return HumanMessage(content=user_text)
+
+    # 服务端附件数量与图片大小校验（防御性编程）
+    if len(attachments) > 5:
+        raise ValueError(f"附件数量超过上限（最多 5 个），当前 {len(attachments)} 个")
+    for att in attachments:
+        if att.type == "image" and len(att.content) > 20 * 1024 * 1024:
+            raise ValueError(f"图片 {att.filename} 过大（最大 20MB base64）")
 
     text_parts = []
     image_parts = []
