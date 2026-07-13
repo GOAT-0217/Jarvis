@@ -378,7 +378,7 @@ def _build_user_message(user_text: str, attachments: list | None = None) -> Huma
             )
 
     # 统一走纯文本路径（图片已通过 _describe_image 转为文字描述）
-    combined = "\n\n".join(text_parts) + f"\n\n用户问题:\n{user_text}"
+    combined = "\n\n".join(text_parts) + f"\n\n---\n请根据以上文件/图片内容来理解和回复用户的消息。如果图片中包含问题或指令，请直接回答或执行。\n\n用户消息:\n{user_text}"
     return HumanMessage(content=combined)
 
 
