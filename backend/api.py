@@ -232,7 +232,7 @@ async def chat_endpoint(request: ChatRequest, current_user: User = Depends(get_c
     """
     try:
         session_id = request.session_id or "default_session"
-        resp = chat_with_agent(request.message, current_user.username, session_id)
+        resp = chat_with_agent(request.message, current_user.username, session_id, attachments=request.attachments)
         if isinstance(resp, dict):
             return ChatResponse(**resp)
         return ChatResponse(response=resp)
@@ -267,7 +267,7 @@ async def chat_stream_endpoint(request: ChatRequest, current_user: User = Depend
     async def event_generator():
         try:
             session_id = request.session_id or "default_session"
-            async for chunk in chat_with_agent_stream(request.message, current_user.username, session_id):
+            async for chunk in chat_with_agent_stream(request.message, current_user.username, session_id, attachments=request.attachments):
                 yield chunk
         except Exception as e:
             error_data = {"type": "error", "content": str(e)}

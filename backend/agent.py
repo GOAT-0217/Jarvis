@@ -294,7 +294,53 @@ def summarize_old_messages(model, messages: list) -> str:
     return summary
 
 
-def chat_with_agent(user_text: str, user_id: str = "default_user", session_id: str = "default_session"):
+def _build_user_message(user_text: str, attachments: list | None = None) -> HumanMessage:
+    """构建包含附件上下文的用户消息。
+
+    文本附件：格式化文本块注入消息。
+    图片附件：构建多模态 content list（OpenAI vision 格式）。
+    混合附件：文本在前，图片在后，最后跟用户原始消息。
+    """
+    if not attachments:
+        return HumanMessage(content=user_text)
+
+    text_parts = []
+    image_parts = []
+
+    for att in attachments:
+        if att.type == "text":
+            text_parts.append(
+                f"[用户上传的文件: {att.filename}]\n文件内容:\n{att.content}\n---"
+            )
+        elif att.type == "image":
+            image_parts.append({
+                "type": "image_url",
+                "image_url": {"url": att.content},
+            })
+
+    if image_parts:
+        # 多模态消息：content 为 list
+        content_blocks = []
+        if text_parts:
+            content_blocks.append({
+                "type": "text",
+                "text": "\n\n".join(text_parts) + f"\n\n用户问题:\n{user_text}",
+            })
+        else:
+            content_blocks.append({
+                "type": "text",
+                "text": f"用户问题:\n{user_text}",
+            })
+        for img in image_parts:
+            content_blocks.append(img)
+        return HumanMessage(content=content_blocks)
+    else:
+        # 纯文本附件
+        combined = "\n\n".join(text_parts) + f"\n\n用户问题:\n{user_text}"
+        return HumanMessage(content=combined)
+
+
+def chat_with_agent(user_text: str, user_id: str = "default_user", session_id: str = "default_session", attachments: list | None = None):
     """使用 Agent 处理用户消息并返回响应"""
     messages = storage.load(user_id, session_id)
 
@@ -309,7 +355,7 @@ def chat_with_agent(user_text: str, user_id: str = "default_user", session_id: s
             SystemMessage(content=f"之前的对话摘要：\n{summary}")
         ] + messages[40:]
 
-    messages.append(HumanMessage(content=user_text))
+    messages.append(_build_user_message(user_text, attachments))
     result = agent.invoke(
         {"messages": messages},
         config={"recursion_limit": 8},
@@ -343,7 +389,7 @@ def chat_with_agent(user_text: str, user_id: str = "default_user", session_id: s
     }
 
 
-async def chat_with_agent_stream(user_text: str, user_id: str = "default_user", session_id: str = "default_session"):
+async def chat_with_agent_stream(user_text: str, user_id: str = "default_user", session_id: str = "default_session", attachments: list | None = None):
     """使用 Agent 处理用户消息并流式返回响应。
     
     架构：使用统一输出队列 + 后台任务，确保 RAG 检索步骤在工具执行期间实时推送，
@@ -371,7 +417,7 @@ async def chat_with_agent_stream(user_text: str, user_id: str = "default_user", 
             SystemMessage(content=f"之前的对话摘要：\n{summary}")
         ] + messages[40:]
 
-    messages.append(HumanMessage(content=user_text))
+    messages.append(_build_user_message(user_text, attachments))
 
     full_response = ""
 
