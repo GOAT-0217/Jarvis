@@ -320,7 +320,7 @@ def _describe_image(base64_uri: str) -> str:
     """
     global _vision_model, _vision_model_name
     try:
-        vision_name = os.getenv("VISION_MODEL", "doubao-seed-1-6-vision-250815")
+        vision_name = os.getenv("VISION_MODEL", "doubao-vision-pro-32k-241028")
         if _vision_model is None or _vision_model_name != vision_name:
             _vision_model = init_chat_model(
                 model=vision_name,
