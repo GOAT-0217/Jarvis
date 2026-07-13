@@ -30,10 +30,19 @@ class CurrentUserResponse(BaseModel):
     role: str
 
 
+class AttachmentItem(BaseModel):
+    """聊天附件（文档文本或图片 base64）"""
+    type: str            # "text" | "image"
+    content: str         # 文本内容 或 data:image/...;base64,... URI
+    filename: str
+    mime_type: Optional[str] = None
+
+
 class ChatRequest(BaseModel):
     """用于规范聊天请求的数据结构及类型校验"""
     message: str
     session_id: Optional[str] = "default_session"
+    attachments: Optional[List[AttachmentItem]] = None
 
 
 class RetrievedChunk(BaseModel):
