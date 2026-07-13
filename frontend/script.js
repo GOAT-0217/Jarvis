@@ -27,7 +27,16 @@ createApp({
                 admin_code: ''
             },
             authLoading: false,
-            uploadPercent: 0
+            uploadPercent: 0,
+
+            // Voice input
+            voiceMode: false,
+            voiceState: 'idle',       // idle | listening | processing | error
+            voiceSupported: false,
+            interimText: '',
+            voiceErrorMsg: '',
+            voiceInput: null,
+            voiceErrorTimer: null
         };
     },
     computed: {
@@ -40,6 +49,7 @@ createApp({
     },
     async mounted() {
         this.configureMarked();
+        this.voiceSupported = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
         if (this.token) {
             try {
                 await this.fetchMe();
@@ -530,6 +540,297 @@ createApp({
 
             } catch (error) {
                 alert('删除文档失败：' + error.message);
+            }
+        },
+
+        // ========== Voice Input Methods ==========
+
+        /** 切换文字/语音输入模式 */
+        toggleVoiceMode() {
+            if (this.isLoading) return;
+            if (!this.isAuthenticated) return;
+
+            if (this.voiceMode) {
+                // 从语音切回文字
+                this.voiceMode = false;
+                this.voiceState = 'idle';
+                this.interimText = '';
+                this.clearVoiceErrorTimer();
+            } else {
+                // 从文字切到语音
+                this.voiceMode = true;
+                this.voiceState = 'idle';
+                this.interimText = '';
+                this.$nextTick(() => {
+                    // 聚焦语音区域（可选，辅助无障碍）
+                });
+            }
+        },
+
+        /** 按住开始录音 */
+        handleVoicePointerDown(e) {
+            if (this.isLoading || !this.voiceMode || this.voiceState === 'processing') return;
+
+            // 创建 VoiceInput 实例（每次按下新建，用完即弃）
+            if (this.voiceInput) {
+                this.voiceInput.abort();
+                this.voiceInput = null;
+            }
+
+            this.voiceState = 'listening';
+            this.interimText = '';
+            this.voiceErrorMsg = '';
+            this.clearVoiceErrorTimer();
+
+            try {
+                this.voiceInput = new VoiceInput({
+                    onStart: () => {
+                        this.voiceState = 'listening';
+                        this.playBeep('start');
+                    },
+                    onInterim: (text) => {
+                        this.interimText = text;
+                    },
+                    onResult: (text) => {
+                        // 识别成功 → 自动发送
+                        this.voiceState = 'processing';
+                        this.playBeep('success');
+                        this.voiceInput = null;
+
+                        // 直接发送（复用现有 handleSend 逻辑的核心部分）
+                        this.sendVoiceMessage(text);
+                    },
+                    onEnd: (error) => {
+                        this.voiceInput = null;
+
+                        if (error === 'no-speech') {
+                            // 没有识别到语音
+                            this.voiceState = 'error';
+                            this.voiceErrorMsg = '未识别到语音，请重试';
+                            this.playBeep('error');
+                            this.scheduleVoiceErrorReset();
+                        } else if (error === 'not-allowed') {
+                            // 权限被拒
+                            this.voiceState = 'error';
+                            this.voiceErrorMsg = '无麦克风权限';
+                            this.playBeep('error');
+                            this.scheduleVoiceErrorReset();
+                        } else if (error === 'network') {
+                            // 网络不可用
+                            this.voiceState = 'error';
+                            this.voiceErrorMsg = '网络不可用';
+                            this.playBeep('error');
+                            this.scheduleVoiceErrorReset();
+                        } else if (error === 'aborted') {
+                            // 用户取消
+                            this.voiceState = 'idle';
+                            this.interimText = '';
+                        } else if (error) {
+                            // 其他错误
+                            this.voiceState = 'error';
+                            this.voiceErrorMsg = '识别失败，请重试';
+                            this.playBeep('error');
+                            this.scheduleVoiceErrorReset();
+                        } else {
+                            // null = 成功（由 onResult 已处理，这里是 stop 后的正常 onEnd）
+                            if (this.voiceState !== 'processing') {
+                                this.voiceState = 'idle';
+                            }
+                        }
+                    }
+                });
+
+                this.voiceInput.start();
+            } catch (e) {
+                this.voiceState = 'error';
+                this.voiceErrorMsg = '语音功能不可用';
+                this.scheduleVoiceErrorReset();
+            }
+        },
+
+        /** 松手停止录音 */
+        handleVoicePointerUp() {
+            if (this.voiceInput && this.voiceInput.isActive) {
+                this.voiceState = 'processing';
+                this.voiceInput.stop();
+            }
+        },
+
+        /** 手指滑出区域 */
+        handleVoicePointerLeave() {
+            // 滑出不中断，用户可以滑回来继续。真正取消由 pointerup 处理。
+        },
+
+        /** 发送语音消息（绕过输入框，直接发送） */
+        sendVoiceMessage(text) {
+            if (!text || !text.trim()) {
+                this.voiceState = 'idle';
+                return;
+            }
+
+            const trimmedText = text.trim();
+
+            // 添加用户消息
+            this.messages.push({
+                text: trimmedText,
+                isUser: true
+            });
+
+            this.$nextTick(() => {
+                this.scrollToBottom();
+            });
+
+            this.isLoading = true;
+            this.messages.push({
+                text: '',
+                isUser: false,
+                isThinking: true,
+                ragTrace: null,
+                ragSteps: []
+            });
+            const botMsgIdx = this.messages.length - 1;
+
+            this.abortController = new AbortController();
+
+            // 发起流式请求（与 handleSend 核心逻辑一致）
+            this.authFetch('/chat/stream', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message: trimmedText,
+                    session_id: this.sessionId
+                }),
+                signal: this.abortController.signal,
+            }).then(async (response) => {
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    let eventEndIndex;
+
+                    while ((eventEndIndex = buffer.indexOf('\n\n')) !== -1) {
+                        const eventStr = buffer.slice(0, eventEndIndex);
+                        buffer = buffer.slice(eventEndIndex + 2);
+
+                        if (eventStr.startsWith('data: ')) {
+                            const dataStr = eventStr.slice(6);
+                            if (dataStr === '[DONE]') continue;
+                            try {
+                                const data = JSON.parse(dataStr);
+                                if (data.type === 'content') {
+                                    if (this.messages[botMsgIdx].isThinking) {
+                                        this.messages[botMsgIdx].isThinking = false;
+                                    }
+                                    this.messages[botMsgIdx].text += data.content;
+                                } else if (data.type === 'trace') {
+                                    this.messages[botMsgIdx].ragTrace = data.rag_trace;
+                                } else if (data.type === 'rag_step') {
+                                    if (!this.messages[botMsgIdx].ragSteps) {
+                                        this.messages[botMsgIdx].ragSteps = [];
+                                    }
+                                    this.messages[botMsgIdx].ragSteps.push(data.step);
+                                } else if (data.type === 'error') {
+                                    this.messages[botMsgIdx].isThinking = false;
+                                    this.messages[botMsgIdx].text += `\n[Error: ${data.content}]`;
+                                }
+                            } catch (e) {
+                                console.warn('SSE parse error:', e);
+                            }
+                        }
+                    }
+                    this.$nextTick(() => this.scrollToBottom());
+                }
+            }).catch((error) => {
+                if (error.name === 'AbortError') {
+                    this.messages[botMsgIdx].isThinking = false;
+                    if (!this.messages[botMsgIdx].text) {
+                        this.messages[botMsgIdx].text = '(已终止回答)';
+                    } else {
+                        this.messages[botMsgIdx].text += '\n\n_(回答已被终止)_';
+                    }
+                } else {
+                    this.messages[botMsgIdx].isThinking = false;
+                    this.messages[botMsgIdx].text = `抱歉主人... 出了点问题：${error.message}`;
+                }
+            }).finally(() => {
+                this.isLoading = false;
+                this.abortController = null;
+                this.voiceState = 'idle';
+                this.interimText = '';
+                this.$nextTick(() => this.scrollToBottom());
+            });
+        },
+
+        /** 错误状态定时恢复 */
+        scheduleVoiceErrorReset() {
+            this.clearVoiceErrorTimer();
+            this.voiceErrorTimer = setTimeout(() => {
+                this.voiceState = 'idle';
+                this.voiceErrorMsg = '';
+                this.interimText = '';
+            }, 2500);
+        },
+
+        /** 清除错误计时器 */
+        clearVoiceErrorTimer() {
+            if (this.voiceErrorTimer) {
+                clearTimeout(this.voiceErrorTimer);
+                this.voiceErrorTimer = null;
+            }
+        },
+
+        /** 提示音（AudioContext 动态生成） */
+        playBeep(type) {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                gain.gain.value = 0.08; // 低音量
+
+                if (type === 'start') {
+                    // 1kHz 短升调
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(800, ctx.currentTime);
+                    osc.frequency.linearRampToValueAtTime(1200, ctx.currentTime + 0.15);
+                    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+                    osc.start(ctx.currentTime);
+                    osc.stop(ctx.currentTime + 0.2);
+                } else if (type === 'success') {
+                    // 800→1200Hz 双音节
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(800, ctx.currentTime);
+                    osc.frequency.setValueAtTime(1200, ctx.currentTime + 0.1);
+                    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+                    osc.start(ctx.currentTime);
+                    osc.stop(ctx.currentTime + 0.25);
+                } else if (type === 'error') {
+                    // 300Hz 低音短鸣
+                    osc.type = 'triangle';
+                    osc.frequency.value = 300;
+                    gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+                    osc.start(ctx.currentTime);
+                    osc.stop(ctx.currentTime + 0.3);
+                }
+
+                // 清理
+                setTimeout(() => {
+                    if (ctx.state !== 'closed') ctx.close();
+                }, 500);
+            } catch (e) {
+                // 提示音失败不影响核心功能
             }
         },
 
