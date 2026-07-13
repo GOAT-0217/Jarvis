@@ -552,6 +552,10 @@ createApp({
 
             if (this.voiceMode) {
                 // 从语音切回文字
+                if (this.voiceInput) {
+                    this.voiceInput.abort();
+                    this.voiceInput = null;
+                }
                 this.voiceMode = false;
                 this.voiceState = 'idle';
                 this.interimText = '';
