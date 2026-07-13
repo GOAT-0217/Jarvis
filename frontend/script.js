@@ -205,14 +205,22 @@ createApp({
             const text = this.userInput.trim();
             if (!text || this.isLoading || this.isComposing) return;
 
+            this.userInput = '';
+            this.$nextTick(() => {
+                this.resetTextareaHeight();
+            });
+
+            this._sendChatMessage(text);
+        },
+
+        /** 发送聊天消息（SSE 流式请求），供 handleSend 和 sendVoiceMessage 复用 */
+        async _sendChatMessage(text) {
             this.messages.push({
                 text: text,
                 isUser: true
             });
 
-            this.userInput = '';
             this.$nextTick(() => {
-                this.resetTextareaHeight();
                 this.scrollToBottom();
             });
 
@@ -621,21 +629,25 @@ createApp({
                             this.voiceState = 'error';
                             this.voiceErrorMsg = '未识别到语音，请重试';
                             this.playBeep('error');
-                            this.scheduleVoiceErrorReset();
+                            this.scheduleVoiceErrorReset('no-speech');
                         } else if (error === 'not-allowed') {
-                            // 权限被拒
+                            // 权限被拒 → 切回文字模式
                             this.voiceState = 'error';
                             this.voiceErrorMsg = '无麦克风权限';
                             this.playBeep('error');
-                            this.scheduleVoiceErrorReset();
+                            this.scheduleVoiceErrorReset('not-allowed');
                         } else if (error === 'network') {
-                            // 网络不可用
+                            // 网络不可用 → 切回文字模式
                             this.voiceState = 'error';
                             this.voiceErrorMsg = '网络不可用';
                             this.playBeep('error');
-                            this.scheduleVoiceErrorReset();
+                            this.scheduleVoiceErrorReset('network');
                         } else if (error === 'aborted') {
                             // 用户取消
+                            this.voiceState = 'idle';
+                            this.interimText = '';
+                        } else if (error === 'unexpected') {
+                            // 浏览器意外结束识别（切标签页、静默超时等）
                             this.voiceState = 'idle';
                             this.interimText = '';
                         } else if (error) {
@@ -643,11 +655,12 @@ createApp({
                             this.voiceState = 'error';
                             this.voiceErrorMsg = '识别失败，请重试';
                             this.playBeep('error');
-                            this.scheduleVoiceErrorReset();
+                            this.scheduleVoiceErrorReset('generic');
                         } else {
-                            // null = 成功（由 onResult 已处理，这里是 stop 后的正常 onEnd）
+                            // null/undefined — 成功（onResult 已处理）或浏览器意外触发
                             if (this.voiceState !== 'processing') {
                                 this.voiceState = 'idle';
+                                this.interimText = '';
                             }
                         }
                     }
@@ -657,7 +670,7 @@ createApp({
             } catch (e) {
                 this.voiceState = 'error';
                 this.voiceErrorMsg = '语音功能不可用';
-                this.scheduleVoiceErrorReset();
+                this.scheduleVoiceErrorReset('exception');
             }
         },
 
@@ -666,6 +679,10 @@ createApp({
             if (this.voiceInput && this.voiceInput.isActive) {
                 this.voiceState = 'processing';
                 this.voiceInput.stop();
+            } else if (this.voiceInput && !this.voiceInput.isActive) {
+                // 快速点击：指针抬起时识别尚未开始，取消等待中的识别
+                this.voiceInput.abort();
+                this.voiceState = 'idle';
             }
         },
 
@@ -681,113 +698,22 @@ createApp({
                 return;
             }
 
-            const trimmedText = text.trim();
-
-            // 添加用户消息
-            this.messages.push({
-                text: trimmedText,
-                isUser: true
-            });
-
-            this.$nextTick(() => {
-                this.scrollToBottom();
-            });
-
-            this.isLoading = true;
-            this.messages.push({
-                text: '',
-                isUser: false,
-                isThinking: true,
-                ragTrace: null,
-                ragSteps: []
-            });
-            const botMsgIdx = this.messages.length - 1;
-
-            this.abortController = new AbortController();
-
-            // 发起流式请求（与 handleSend 核心逻辑一致）
-            this.authFetch('/chat/stream', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    message: trimmedText,
-                    session_id: this.sessionId
-                }),
-                signal: this.abortController.signal,
-            }).then(async (response) => {
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                let buffer = '';
-
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-
-                    buffer += decoder.decode(value, { stream: true });
-                    let eventEndIndex;
-
-                    while ((eventEndIndex = buffer.indexOf('\n\n')) !== -1) {
-                        const eventStr = buffer.slice(0, eventEndIndex);
-                        buffer = buffer.slice(eventEndIndex + 2);
-
-                        if (eventStr.startsWith('data: ')) {
-                            const dataStr = eventStr.slice(6);
-                            if (dataStr === '[DONE]') continue;
-                            try {
-                                const data = JSON.parse(dataStr);
-                                if (data.type === 'content') {
-                                    if (this.messages[botMsgIdx].isThinking) {
-                                        this.messages[botMsgIdx].isThinking = false;
-                                    }
-                                    this.messages[botMsgIdx].text += data.content;
-                                } else if (data.type === 'trace') {
-                                    this.messages[botMsgIdx].ragTrace = data.rag_trace;
-                                } else if (data.type === 'rag_step') {
-                                    if (!this.messages[botMsgIdx].ragSteps) {
-                                        this.messages[botMsgIdx].ragSteps = [];
-                                    }
-                                    this.messages[botMsgIdx].ragSteps.push(data.step);
-                                } else if (data.type === 'error') {
-                                    this.messages[botMsgIdx].isThinking = false;
-                                    this.messages[botMsgIdx].text += `\n[Error: ${data.content}]`;
-                                }
-                            } catch (e) {
-                                console.warn('SSE parse error:', e);
-                            }
-                        }
-                    }
-                    this.$nextTick(() => this.scrollToBottom());
-                }
-            }).catch((error) => {
-                if (error.name === 'AbortError') {
-                    this.messages[botMsgIdx].isThinking = false;
-                    if (!this.messages[botMsgIdx].text) {
-                        this.messages[botMsgIdx].text = '(已终止回答)';
-                    } else {
-                        this.messages[botMsgIdx].text += '\n\n_(回答已被终止)_';
-                    }
-                } else {
-                    this.messages[botMsgIdx].isThinking = false;
-                    this.messages[botMsgIdx].text = `抱歉主人... 出了点问题：${error.message}`;
-                }
-            }).finally(() => {
-                this.isLoading = false;
-                this.abortController = null;
+            this._sendChatMessage(text.trim()).finally(() => {
                 this.voiceState = 'idle';
                 this.interimText = '';
-                this.$nextTick(() => this.scrollToBottom());
             });
         },
 
-        /** 错误状态定时恢复 */
-        scheduleVoiceErrorReset() {
+        /** 错误状态定时恢复。not-allowed / network 会切回文字模式。 */
+        scheduleVoiceErrorReset(errorType) {
             this.clearVoiceErrorTimer();
             this.voiceErrorTimer = setTimeout(() => {
                 this.voiceState = 'idle';
                 this.voiceErrorMsg = '';
                 this.interimText = '';
+                if (errorType === 'not-allowed' || errorType === 'network') {
+                    this.voiceMode = false;
+                }
             }, 2500);
         },
 

@@ -94,9 +94,13 @@ class VoiceInput {
 
     this._recognition.onend = () => {
       this._clearSilenceTimer();
+      const wasActive = this._isActive;
       this._isActive = false;
-      // 正常结束且有识别内容 → 返回结果
-      // （由 stop() 处理，onend 本身不触发 onResult）
+      // 如果 _isActive 之前为 true，说明浏览器在未被我们 stop/abort 的情况下结束了识别
+      // （某些浏览器会在静默或切标签页时自动结束），通知上层重置 UI
+      if (wasActive) {
+        this._onEnd('unexpected');
+      }
     };
   }
 
@@ -157,7 +161,6 @@ class VoiceInput {
   abort() {
     this._clearSilenceTimer();
     this._finalText = '';
-    if (!this._isActive) return;
 
     try {
       this._recognition.abort();
