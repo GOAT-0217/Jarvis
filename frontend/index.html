@@ -366,6 +366,22 @@
             </div>
 
             <div class="input-area-wrapper">
+                <!-- 附件 Chips 展示 -->
+                <div v-if="attachments.length > 0" class="attach-chips">
+                    <div
+                        v-for="(att, idx) in attachments"
+                        :key="att.id"
+                        :class="['attach-chip', 'chip-' + att.status]"
+                    >
+                        <i :class="att.type === 'image' ? 'fas fa-image' : 'fas fa-file-alt'"></i>
+                        <span class="chip-filename">{{ att.filename }}</span>
+                        <span v-if="att.status === 'extracting'" class="chip-status">提取中...</span>
+                        <span v-else-if="att.status === 'error'" class="chip-status chip-error">提取失败</span>
+                        <button class="chip-remove" @click="removeAttachment(idx)" title="移除">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
                 <div class="input-area" :class="{ 'voice-active': voiceMode }">
                     <!-- 文字输入模式 -->
                     <textarea
@@ -415,17 +431,6 @@
                         {{ interimText }}
                     </div>
 
-                    <!-- 附件上传进度条 -->
-                    <div v-if="attachUploading" class="attach-progress-bar">
-                        <div class="progress-text-row">
-                            <span>{{ attachProgress }}</span>
-                            <span>{{ attachPercent }}%</span>
-                        </div>
-                        <div class="progress-bar-wrapper">
-                            <div class="progress-bar-fill" :style="{ width: attachPercent + '%' }"></div>
-                        </div>
-                    </div>
-
                     <!-- 按钮组 -->
                     <div class="input-buttons">
                         <!-- 语音模式：显示键盘按钮 -->
@@ -447,33 +452,24 @@
                         >
                             <i class="fas fa-microphone"></i>
                         </button>
-                        <!-- 加号按钮（仅管理员） -->
+                        <!-- 附件按钮（所有登录用户可见） -->
                         <button
-                            v-if="isAdmin"
+                            v-if="isAuthenticated"
                             class="plus-btn"
                             @click="handleAttachClick"
-                            title="上传附件"
+                            :disabled="isLoading"
+                            title="添加附件（最多5个）"
                         >
-                            <i class="fas fa-plus"></i>
+                            <i class="fas fa-paperclip"></i>
                         </button>
-                        <!-- 附件上传隐藏 input -->
+                        <!-- 附件文件选择器（隐藏） -->
                         <input
-                            v-if="isAdmin"
                             type="file"
                             ref="attachFileInput"
                             class="attach-file-input"
-                            accept=".pdf,.doc,.docx,.xls,.xlsx"
+                            accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp"
                             @change="handleAttachFileSelect"
                         />
-                        <!-- 附件上传弹窗 -->
-                        <div v-if="isAdmin && showAttachMenu" class="attach-dropdown" @click.stop>
-                            <button @click="handleAttachFileClick">
-                                <i class="fas fa-file-alt"></i> 上传文档
-                            </button>
-                            <button @click="handleAttachImageClick">
-                                <i class="fas fa-image"></i> 上传图片
-                            </button>
-                        </div>
                     </div>
 
                     <!-- 发送/终止按钮 -->

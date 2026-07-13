@@ -38,11 +38,9 @@ createApp({
             voiceInput: null,
             voiceErrorTimer: null,
 
-            // Attachment upload
-            showAttachMenu: false,
-            attachUploading: false,
-            attachProgress: '',
-            attachPercent: 0
+            // Attachment upload — chip mode
+            attachments: [],          // {id, type, content, filename, mime_type, status}
+                                      // status: 'extracting' | 'ready' | 'error'
         };
     },
     computed: {
@@ -64,8 +62,6 @@ createApp({
             }
         }
 
-        // 全局点击关闭附件菜单
-        document.addEventListener('click', this.handleClickOutside);
     },
     methods: {
         configureMarked() {
@@ -170,6 +166,7 @@ createApp({
             this.messages = [];
             this.sessions = [];
             this.documents = [];
+            this.attachments = [];
             this.activeNav = 'newChat';
             this.showHistorySidebar = false;
             localStorage.removeItem('accessToken');
@@ -333,6 +330,7 @@ createApp({
         handleNewChat() {
             if (!this.isAuthenticated) return;
             this.messages = [];
+            this.attachments = [];
             this.sessionId = 'session_' + Date.now();
             this.activeNav = 'newChat';
             this.showHistorySidebar = false;
@@ -779,101 +777,71 @@ createApp({
         handleAttachClick(event) {
             event.stopPropagation();
             if (this.isLoading) return;
-            this.showAttachMenu = !this.showAttachMenu;
-        },
-
-        /** 点击上传文档 — 打开文件选择器 */
-        handleAttachFileClick() {
-            this.showAttachMenu = false;
+            if (this.attachments.length >= 5) {
+                alert('最多只能添加5个附件');
+                return;
+            }
             if (this.$refs.attachFileInput) {
-                this.$refs.attachFileInput.accept = '.pdf,.doc,.docx,.xls,.xlsx';
                 this.$refs.attachFileInput.click();
             }
         },
 
-        /** 点击上传图片 — 暂不支持，提示用户 */
-        handleAttachImageClick() {
-            this.showAttachMenu = false;
-            alert('图片上传功能正在开发中，当前仅支持 PDF、Word、Excel 文档。');
-        },
 
-        /** 文件选择后的上传处理 */
+        /** 文件选择后的上传处理 — 添加附件 chip 并调用 /attachments/extract */
         handleAttachFileSelect(event) {
             const files = event.target.files;
             if (!files || files.length === 0) return;
 
             const file = files[0];
-            this.attachUploading = true;
-            this.attachProgress = '准备上传...';
-            this.attachPercent = 0;
+
+            const tempId = 'att_' + Date.now();
+            this.attachments.push({
+                id: tempId,
+                type: file.type.startsWith('image/') ? 'image' : 'file',
+                content: null,
+                filename: file.name,
+                mime_type: file.type,
+                status: 'extracting'
+            });
 
             const formData = new FormData();
             formData.append('file', file);
 
-            const xhr = new XMLHttpRequest();
-
-            xhr.upload.addEventListener('progress', (e) => {
-                if (e.lengthComputable) {
-                    const pct = Math.round((e.loaded / e.total) * 100);
-                    this.attachPercent = pct;
-                    this.attachProgress = `上传中 ${this.formatFileSize(e.loaded)} / ${this.formatFileSize(e.total)}`;
+            this.authFetch('/attachments/extract', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Extraction failed');
+                return response.json();
+            })
+            .then(data => {
+                const idx = this.attachments.findIndex(a => a.id === tempId);
+                if (idx !== -1) {
+                    this.attachments[idx] = {
+                        id: data.id,
+                        type: data.type,
+                        content: data.content,
+                        filename: data.filename,
+                        mime_type: data.mime_type,
+                        status: 'ready'
+                    };
+                }
+            })
+            .catch(error => {
+                const idx = this.attachments.findIndex(a => a.id === tempId);
+                if (idx !== -1) {
+                    this.attachments[idx].status = 'error';
                 }
             });
-
-            xhr.addEventListener('load', () => {
-                this.attachUploading = false;
-                if (xhr.status >= 200 && xhr.status < 300) {
-                    try {
-                        const data = JSON.parse(xhr.responseText);
-                        alert(data.message || '上传成功');
-
-                        // 如果当前在设置页面，刷新文档列表
-                        if (this.activeNav === 'settings') {
-                            this.loadDocuments();
-                        }
-
-                        setTimeout(() => {
-                            this.attachProgress = '';
-                            this.attachPercent = 0;
-                        }, 3000);
-                    } catch (e) {
-                        this.attachProgress = '解析响应失败';
-                    }
-                } else {
-                    try {
-                        const err = JSON.parse(xhr.responseText);
-                        alert(`上传失败：${err.detail || xhr.statusText}`);
-                    } catch {
-                        alert(`上传失败：HTTP ${xhr.status}`);
-                    }
-                    this.attachProgress = '';
-                }
-            });
-
-            xhr.addEventListener('error', () => {
-                this.attachUploading = false;
-                alert('上传失败：网络错误');
-                this.attachProgress = '';
-            });
-
-            xhr.addEventListener('abort', () => {
-                this.attachUploading = false;
-                this.attachProgress = '';
-            });
-
-            xhr.open('POST', '/documents/upload');
-            xhr.setRequestHeader('Authorization', `Bearer ${this.token}`);
-            xhr.send(formData);
 
             // 清空 input，允许重复上传同一文件
             event.target.value = '';
         },
 
-        /** 关闭附件菜单（点击其他地方时） */
-        handleClickOutside() {
-            if (this.showAttachMenu) {
-                this.showAttachMenu = false;
-            }
+        /** 移除指定索引的附件 chip */
+        removeAttachment(idx) {
+            this.attachments.splice(idx, 1);
         },
 
         getFileIcon(fileType) {

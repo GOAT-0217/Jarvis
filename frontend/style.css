@@ -1566,6 +1566,88 @@ textarea::placeholder {
     display: none;
 }
 
+/* ---- 附件 Chips 展示 ---- */
+.attach-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+    animation: fadeIn 0.2s ease;
+}
+
+.attach-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 20px;
+    font-size: 0.82rem;
+    background: rgba(94, 234, 212, 0.08);
+    border: 1px solid rgba(94, 234, 212, 0.2);
+    color: var(--text-color);
+    transition: var(--transition);
+    max-width: 100%;
+}
+
+.attach-chip i {
+    font-size: 0.85rem;
+    color: var(--primary-color);
+    flex-shrink: 0;
+}
+
+.attach-chip .chip-filename {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 180px;
+}
+
+.attach-chip .chip-status {
+    font-size: 0.72rem;
+    color: var(--primary-color);
+    flex-shrink: 0;
+}
+
+.attach-chip .chip-error {
+    color: #fca5a5;
+}
+
+.attach-chip .chip-remove {
+    background: none;
+    border: none;
+    color: var(--text-light);
+    cursor: pointer;
+    padding: 2px;
+    font-size: 0.75rem;
+    border-radius: 50%;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.attach-chip .chip-remove:hover {
+    color: #fca5a5;
+    background: rgba(248, 113, 113, 0.12);
+}
+
+/* chip status variants */
+.chip-extracting {
+    border-color: rgba(167, 139, 250, 0.4);
+    background: rgba(167, 139, 250, 0.06);
+}
+
+.chip-error {
+    border-color: rgba(248, 113, 113, 0.4);
+    background: rgba(248, 113, 113, 0.06);
+}
+
+.chip-ready {
+    border-color: rgba(94, 234, 212, 0.3);
+    background: rgba(94, 234, 212, 0.06);
+}
+
 /* ---- 附件上传进度提示 ---- */
 .attach-progress-bar {
     position: absolute;
