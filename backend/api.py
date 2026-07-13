@@ -1,9 +1,11 @@
 import json
 import os
 import re
+import tempfile
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from langchain_community.document_loaders import Docx2txtLoader, PyPDFLoader, UnstructuredExcelLoader
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -16,6 +18,7 @@ from milvus_writer import MilvusWriter
 from models import User
 from parent_chunk_store import ParentChunkStore
 from schemas import (
+    AttachmentItem,
     AuthResponse,
     ChatRequest,
     ChatResponse,
@@ -33,6 +36,15 @@ from schemas import (
     SessionMessagesResponse,
 )
 
+from pydantic import BaseModel as PydanticBaseModel
+
+
+class AttachmentExtractResponse(PydanticBaseModel):
+    filename: str
+    text: str
+    char_count: int
+
+
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR.parent / "data"
 UPLOAD_DIR = DATA_DIR / "documents"
@@ -43,6 +55,64 @@ milvus_manager = MilvusManager()
 milvus_writer = MilvusWriter(embedding_service=embedding_service, milvus_manager=milvus_manager)
 
 router = APIRouter()
+
+
+@router.post("/attachments/extract", response_model=AttachmentExtractResponse)
+async def extract_attachment_text(file: UploadFile = File(...), current_user: User = Depends(get_current_user)):
+    """提取上传文件的全文（不分块、不入库、不向量化）。
+
+    支持 PDF / Word / Excel。文件写入临时路径供加载器使用，提取后立即删除。
+    """
+    filename = file.filename or ""
+    file_lower = filename.lower()
+
+    if not filename:
+        raise HTTPException(status_code=400, detail="文件名不能为空")
+
+    if not (
+        file_lower.endswith(".pdf")
+        or file_lower.endswith((".docx", ".doc"))
+        or file_lower.endswith((".xlsx", ".xls"))
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=f"不支持的文件类型。支持：PDF、Word (.docx/.doc)、Excel (.xlsx/.xls)",
+        )
+
+    # 写入临时文件供加载器使用
+    suffix = Path(filename).suffix or ".tmp"
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        tmp.write(await file.read())
+        tmp_path = tmp.name
+
+    try:
+        # 根据类型选择加载器
+        if file_lower.endswith(".pdf"):
+            loader = PyPDFLoader(tmp_path)
+        elif file_lower.endswith((".docx", ".doc")):
+            loader = Docx2txtLoader(tmp_path)
+        else:
+            loader = UnstructuredExcelLoader(tmp_path)
+
+        docs = loader.load()
+        # 拼接所有页面文本为全文
+        full_text = "\n\n".join(
+            (doc.page_content or "").strip() for doc in docs if (doc.page_content or "").strip()
+        )
+
+        return AttachmentExtractResponse(
+            filename=filename,
+            text=full_text,
+            char_count=len(full_text),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"文件提取失败: {str(e)}")
+    finally:
+        # 清理临时文件
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
 
 
 def _remove_bm25_stats_for_filename(filename: str) -> None:
