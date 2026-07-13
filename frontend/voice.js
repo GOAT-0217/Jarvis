@@ -35,6 +35,7 @@ class VoiceInput {
     this._recognition.interimResults = true;
     this._recognition.continuous = true;
     this._maxAlternatives = 1;
+    this._recognition.maxAlternatives = this._maxAlternatives;
 
     this._onStart = onStart || (() => {});
     this._onInterim = onInterim || (() => {});
@@ -137,7 +138,7 @@ class VoiceInput {
     try {
       this._recognition.stop();
     } catch (e) {
-      // 忽略 InvalidStateError
+      if (e.name !== 'InvalidStateError') throw e;
     }
 
     this._isActive = false;
@@ -161,7 +162,7 @@ class VoiceInput {
     try {
       this._recognition.abort();
     } catch (e) {
-      // 忽略
+      if (e.name !== 'InvalidStateError') throw e;
     }
 
     this._isActive = false;
