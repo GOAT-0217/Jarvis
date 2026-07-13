@@ -1515,51 +1515,6 @@ textarea::placeholder {
     display: flex;
 }
 
-/* ---- 附件上传弹窗 ---- */
-.attach-dropdown {
-    position: absolute;
-    bottom: calc(100% + 10px);
-    right: 0;
-    background: rgba(26, 31, 46, 0.98);
-    border: 1px solid rgba(94, 234, 212, 0.2);
-    border-radius: 14px;
-    padding: 8px;
-    min-width: 180px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-    z-index: 30;
-    animation: attachSlideUp 0.2s ease;
-}
-
-@keyframes attachSlideUp {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.attach-dropdown button {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    width: 100%;
-    padding: 10px 14px;
-    border: none;
-    background: transparent;
-    color: var(--text-color);
-    font-size: 0.9rem;
-    border-radius: 10px;
-    cursor: pointer;
-    transition: var(--transition);
-}
-
-.attach-dropdown button:hover {
-    background: rgba(94, 234, 212, 0.08);
-    color: var(--primary-color);
-}
-
-.attach-dropdown button i {
-    width: 18px;
-    text-align: center;
-    color: var(--primary-color);
-}
 
 /* ---- 隐藏的文件输入 ---- */
 .attach-file-input {
@@ -1571,71 +1526,72 @@ textarea::placeholder {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    margin-bottom: 10px;
-    animation: fadeIn 0.2s ease;
+    padding: 8px 12px 0;
+    max-width: 100%;
 }
 
 .attach-chip {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 6px 10px;
-    border-radius: 20px;
-    font-size: 0.82rem;
+    padding: 5px 8px 5px 10px;
     background: rgba(94, 234, 212, 0.08);
     border: 1px solid rgba(94, 234, 212, 0.2);
+    border-radius: 20px;
+    font-size: 0.8rem;
     color: var(--text-color);
-    transition: var(--transition);
-    max-width: 100%;
+    transition: border-color 0.2s ease, background 0.2s ease;
+    max-width: 220px;
 }
 
 .attach-chip i {
-    font-size: 0.85rem;
     color: var(--primary-color);
+    font-size: 0.85rem;
     flex-shrink: 0;
 }
 
-.attach-chip .chip-filename {
+.chip-filename {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    max-width: 180px;
+    flex: 1;
+    min-width: 0;
 }
 
-.attach-chip .chip-status {
-    font-size: 0.72rem;
-    color: var(--primary-color);
+.chip-status {
+    font-size: 0.7rem;
+    color: var(--text-light);
+    opacity: 0.7;
     flex-shrink: 0;
 }
 
-.attach-chip .chip-error {
-    color: #fca5a5;
+.chip-error {
+    color: #f87171;
 }
 
-.attach-chip .chip-remove {
+.chip-remove {
     background: none;
     border: none;
     color: var(--text-light);
     cursor: pointer;
-    padding: 2px;
-    font-size: 0.75rem;
+    padding: 2px 4px;
     border-radius: 50%;
-    transition: var(--transition);
+    font-size: 0.7rem;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    transition: color 0.15s ease, background 0.15s ease;
 }
 
-.attach-chip .chip-remove:hover {
-    color: #fca5a5;
+.chip-remove:hover {
+    color: #f87171;
     background: rgba(248, 113, 113, 0.12);
 }
 
 /* chip status variants */
 .chip-extracting {
-    border-color: rgba(167, 139, 250, 0.4);
-    background: rgba(167, 139, 250, 0.06);
+    opacity: 0.7;
 }
 
 .chip-error {
@@ -1648,47 +1604,3 @@ textarea::placeholder {
     background: rgba(94, 234, 212, 0.06);
 }
 
-/* ---- 附件上传进度提示 ---- */
-.attach-progress-bar {
-    position: absolute;
-    bottom: calc(100% + 8px);
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(30, 36, 51, 0.98);
-    border: 1px solid rgba(94, 234, 212, 0.2);
-    border-radius: 12px;
-    padding: 10px 16px;
-    min-width: 220px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-    z-index: 30;
-    animation: attachSlideUp 0.2s ease;
-}
-
-.attach-progress-bar .progress-text-row {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.8rem;
-    color: var(--text-light);
-    margin-bottom: 6px;
-}
-
-.attach-progress-bar .progress-text-row span:last-child {
-    color: var(--primary-color);
-    font-weight: 600;
-}
-
-.attach-progress-bar .progress-bar-wrapper {
-    width: 100%;
-    height: 6px;
-    background: rgba(15, 20, 31, 0.8);
-    border-radius: 6px;
-    overflow: hidden;
-}
-
-.attach-progress-bar .progress-bar-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #5eead4, #a78bfa);
-    border-radius: 6px;
-    transition: width 0.3s ease;
-    box-shadow: 0 0 8px rgba(94, 234, 212, 0.4);
-}
