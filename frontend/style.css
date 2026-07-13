@@ -1335,7 +1335,6 @@ textarea::placeholder {
 /* ---- 语音输入区域（文字模式隐藏） ---- */
 .voice-input-area {
     flex: 1;
-    display: flex;
     align-items: center;
     justify-content: center;
     min-height: 44px;
@@ -1504,10 +1503,6 @@ textarea::placeholder {
 /* ---- 语音模式时隐藏 textarea ---- */
 .input-area.voice-active textarea {
     display: none;
-}
-
-.input-area.voice-active .voice-input-area {
-    display: flex;
 }
 
 /* ---- 默认隐藏语音区域 ---- */
