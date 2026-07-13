@@ -36,7 +36,13 @@ createApp({
             interimText: '',
             voiceErrorMsg: '',
             voiceInput: null,
-            voiceErrorTimer: null
+            voiceErrorTimer: null,
+
+            // Attachment upload
+            showAttachMenu: false,
+            attachUploading: false,
+            attachProgress: '',
+            attachPercent: 0
         };
     },
     computed: {
@@ -57,6 +63,9 @@ createApp({
                 this.handleLogout();
             }
         }
+
+        // 全局点击关闭附件菜单
+        document.addEventListener('click', this.handleClickOutside);
     },
     methods: {
         configureMarked() {
@@ -835,6 +844,108 @@ createApp({
                 }, 500);
             } catch (e) {
                 // 提示音失败不影响核心功能
+            }
+        },
+
+        // ========== Attachment Upload Methods ==========
+
+        /** 点击加号 — 切换附件菜单 */
+        handleAttachClick() {
+            if (this.isLoading) return;
+            this.showAttachMenu = !this.showAttachMenu;
+        },
+
+        /** 点击上传文档 — 打开文件选择器 */
+        handleAttachFileClick() {
+            this.showAttachMenu = false;
+            if (this.$refs.attachFileInput) {
+                this.$refs.attachFileInput.accept = '.pdf,.doc,.docx,.xls,.xlsx';
+                this.$refs.attachFileInput.click();
+            }
+        },
+
+        /** 点击上传图片 — 暂不支持，提示用户 */
+        handleAttachImageClick() {
+            this.showAttachMenu = false;
+            alert('图片上传功能正在开发中，当前仅支持 PDF、Word、Excel 文档。');
+        },
+
+        /** 文件选择后的上传处理 */
+        handleAttachFileSelect(event) {
+            const files = event.target.files;
+            if (!files || files.length === 0) return;
+
+            const file = files[0];
+            this.attachUploading = true;
+            this.attachProgress = '准备上传...';
+            this.attachPercent = 0;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const xhr = new XMLHttpRequest();
+
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                    const pct = Math.round((e.loaded / e.total) * 100);
+                    this.attachPercent = pct;
+                    this.attachProgress = `上传中 ${this.formatFileSize(e.loaded)} / ${this.formatFileSize(e.total)}`;
+                }
+            });
+
+            xhr.addEventListener('load', () => {
+                this.attachUploading = false;
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    try {
+                        const data = JSON.parse(xhr.responseText);
+                        alert(data.message || '上传成功');
+
+                        // 如果当前在设置页面，刷新文档列表
+                        if (this.activeNav === 'settings') {
+                            this.loadDocuments();
+                        }
+
+                        setTimeout(() => {
+                            this.attachProgress = '';
+                            this.attachPercent = 0;
+                        }, 3000);
+                    } catch (e) {
+                        this.attachProgress = '解析响应失败';
+                    }
+                } else {
+                    try {
+                        const err = JSON.parse(xhr.responseText);
+                        alert(`上传失败：${err.detail || xhr.statusText}`);
+                    } catch {
+                        alert(`上传失败：HTTP ${xhr.status}`);
+                    }
+                    this.attachProgress = '';
+                }
+            });
+
+            xhr.addEventListener('error', () => {
+                this.attachUploading = false;
+                alert('上传失败：网络错误');
+                this.attachProgress = '';
+            });
+
+            xhr.addEventListener('abort', () => {
+                this.attachUploading = false;
+                this.attachProgress = '';
+            });
+
+            xhr.open('POST', '/documents/upload');
+            xhr.setRequestHeader('Authorization', `Bearer ${this.token}`);
+            xhr.send(formData);
+
+            // 清空 input，允许重复上传同一文件
+            event.target.value = '';
+        },
+
+        /** 关闭附件菜单（点击其他地方时） */
+        handleClickOutside() {
+            if (this.showAttachMenu) {
+                this.showAttachMenu = false;
             }
         },
 
