@@ -234,15 +234,29 @@ createApp({
             this.abortController = new AbortController();
 
             try {
+                // 收集状态为 ready 的附件
+                const readyAttachments = this.attachments
+                    .filter(a => a.status === 'ready')
+                    .map(a => ({
+                        type: a.type,
+                        content: a.content,
+                        filename: a.filename,
+                        mime_type: a.mime_type || null,
+                    }));
+
                 const response = await this.authFetch('/chat/stream', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         message: text,
-                        session_id: this.sessionId
+                        session_id: this.sessionId,
+                        attachments: readyAttachments.length > 0 ? readyAttachments : null,
                     }),
                     signal: this.abortController.signal,
                 });
+
+                // 发送后清空附件
+                this.attachments = [];
 
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
@@ -337,6 +351,7 @@ createApp({
         },
 
         handleClearChat() {
+            this.attachments = [];
             if (confirm('确定要清空当前对话吗？主人？')) {
                 this.messages = [];
             }
