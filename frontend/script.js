@@ -791,14 +791,11 @@ createApp({
         /** 粘贴事件处理 — 识别剪贴板中的图片并走附件 chip 流程 */
         handlePaste(event) {
             const items = event.clipboardData?.items;
-            console.log('[paste] items:', items ? items.length : 'none');
             if (!items) return;
 
             for (const item of items) {
-                console.log('[paste] item type:', item.type);
                 if (item.type.startsWith('image/')) {
                     event.preventDefault();
-                    console.log('[paste] image detected, preventing default paste');
 
                     if (this.attachments.length >= 5) {
                         alert('最多只能添加 5 个附件');
@@ -806,7 +803,6 @@ createApp({
                     }
 
                     const file = item.getAsFile();
-                    console.log('[paste] file:', file ? `${file.name} (${file.size} bytes, ${file.type})` : 'null');
                     if (!file) continue;
 
                     const attachmentId = 'att_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
@@ -861,7 +857,6 @@ createApp({
 
         /** 处理图片文件 — FileReader 转 base64 */
         _handleImageFile(file, attachmentId) {
-            console.log('[image] _handleImageFile called:', file.name, file.size, file.type);
             // 检查大小
             if (file.size > 10 * 1024 * 1024) {
                 alert('图片文件不能超过 10MB');
@@ -877,21 +872,16 @@ createApp({
                 status: 'extracting',
             };
             this.attachments.push(chip);
-            console.log('[image] chip pushed, attachments count:', this.attachments.length);
 
             const reader = new FileReader();
             reader.onload = () => {
-                console.log('[image] FileReader onload fired, result length:', reader.result?.length);
                 chip.content = reader.result;
                 chip.status = 'ready';
-                console.log('[image] chip status set to ready');
             };
-            reader.onerror = (e) => {
-                console.error('[image] FileReader onerror:', e);
+            reader.onerror = () => {
                 chip.status = 'error';
             };
             reader.readAsDataURL(file);
-            console.log('[image] FileReader started');
         },
 
         /** 处理文档文件 — 上传到 /attachments/extract 提取文本 */
