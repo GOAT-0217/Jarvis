@@ -308,12 +308,51 @@ def summarize_old_messages(model, messages: list) -> str:
     return summary
 
 
+# 视觉模型懒加载缓存
+_vision_model = None
+_vision_model_name = None
+
+
+def _describe_image(base64_uri: str) -> str:
+    """调用视觉模型，将图片转为文字描述。
+
+    模型按需初始化，只初始化一次。调用失败时返回错误提示，不抛异常。
+    """
+    global _vision_model, _vision_model_name
+    try:
+        vision_name = os.getenv("VISION_MODEL", "doubao-seed-1-6-vision-250815")
+        if _vision_model is None or _vision_model_name != vision_name:
+            _vision_model = init_chat_model(
+                model=vision_name,
+                model_provider="openai",
+                api_key=API_KEY,
+                base_url=BASE_URL,
+                temperature=0.3,
+            )
+            _vision_model_name = vision_name
+
+        msg = HumanMessage(content=[
+            {
+                "type": "text",
+                "text": "请详细描述这张图片的内容，包括文字、布局、数据等所有可见信息。",
+            },
+            {
+                "type": "image_url",
+                "image_url": {"url": base64_uri},
+            },
+        ])
+        resp = _vision_model.invoke([msg])
+        return resp.content if isinstance(resp.content, str) else str(resp.content)
+    except Exception as e:
+        return f"(图片识别失败: {str(e)})"
+
+
 def _build_user_message(user_text: str, attachments: list | None = None) -> HumanMessage:
     """构建包含附件上下文的用户消息。
 
     文本附件：格式化文本块注入消息。
-    图片附件：构建多模态 content list（OpenAI vision 格式）。
-    混合附件：文本在前，图片在后，最后跟用户原始消息。
+    图片附件：调用视觉模型描述后注入文本（不支持多模态的模型降级方案）。
+    混合附件：统一按文本形式拼接。
     """
     if not attachments:
         return HumanMessage(content=user_text)
@@ -326,7 +365,6 @@ def _build_user_message(user_text: str, attachments: list | None = None) -> Huma
             raise ValueError(f"图片 {att.filename} 过大（最大 20MB base64）")
 
     text_parts = []
-    image_parts = []
 
     for att in attachments:
         if att.type == "text":
@@ -334,31 +372,14 @@ def _build_user_message(user_text: str, attachments: list | None = None) -> Huma
                 f"[用户上传的文件: {att.filename}]\n文件内容:\n{att.content}\n---"
             )
         elif att.type == "image":
-            image_parts.append({
-                "type": "image_url",
-                "image_url": {"url": att.content},
-            })
+            description = _describe_image(att.content)
+            text_parts.append(
+                f"[用户上传的图片: {att.filename}]\n图片内容描述:\n{description}\n---"
+            )
 
-    if image_parts:
-        # 多模态消息：content 为 list
-        content_blocks = []
-        if text_parts:
-            content_blocks.append({
-                "type": "text",
-                "text": "\n\n".join(text_parts) + f"\n\n用户问题:\n{user_text}",
-            })
-        else:
-            content_blocks.append({
-                "type": "text",
-                "text": f"用户问题:\n{user_text}",
-            })
-        for img in image_parts:
-            content_blocks.append(img)
-        return HumanMessage(content=content_blocks)
-    else:
-        # 纯文本附件
-        combined = "\n\n".join(text_parts) + f"\n\n用户问题:\n{user_text}"
-        return HumanMessage(content=combined)
+    # 统一走纯文本路径（图片已通过 _describe_image 转为文字描述）
+    combined = "\n\n".join(text_parts) + f"\n\n用户问题:\n{user_text}"
+    return HumanMessage(content=combined)
 
 
 def chat_with_agent(user_text: str, user_id: str = "default_user", session_id: str = "default_session", attachments: list | None = None):
