@@ -863,23 +863,23 @@ createApp({
                 return;
             }
 
-            const chip = {
+            this.attachments.push({
                 id: attachmentId,
                 type: 'image',
                 content: '',
                 filename: file.name,
                 mime_type: file.type,
                 status: 'extracting',
-            };
-            this.attachments.push(chip);
+            });
+            const chipIdx = this.attachments.length - 1;
 
             const reader = new FileReader();
             reader.onload = () => {
-                chip.content = reader.result;
-                chip.status = 'ready';
+                this.attachments[chipIdx].content = reader.result;
+                this.attachments[chipIdx].status = 'ready';
             };
             reader.onerror = () => {
-                chip.status = 'error';
+                this.attachments[chipIdx].status = 'error';
             };
             reader.readAsDataURL(file);
         },
