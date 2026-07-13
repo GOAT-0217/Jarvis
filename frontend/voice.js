@@ -46,6 +46,7 @@ class VoiceInput {
     this._finalText = '';
     this._silenceTimer = null;
     this._SILENCE_TIMEOUT = 3000; // 3秒无声自动结束
+    this._stopRequested = false;  // 标记 stop() 是否被调用，避免 stop() 中同步检查结果
 
     this._bindEvents();
   }
@@ -58,6 +59,7 @@ class VoiceInput {
     this._recognition.onstart = () => {
       this._isActive = true;
       this._finalText = '';
+      this._stopRequested = false;
       this._onStart();
       this._resetSilenceTimer();
     };
@@ -88,7 +90,7 @@ class VoiceInput {
     this._recognition.onerror = (event) => {
       this._clearSilenceTimer();
       this._isActive = false;
-      // error 也触发 onEnd，由上层区分
+      this._stopRequested = false;
       this._onEnd(event.error);
     };
 
@@ -96,9 +98,19 @@ class VoiceInput {
       this._clearSilenceTimer();
       const wasActive = this._isActive;
       this._isActive = false;
-      // 如果 _isActive 之前为 true，说明浏览器在未被我们 stop/abort 的情况下结束了识别
-      // （某些浏览器会在静默或切标签页时自动结束），通知上层重置 UI
-      if (wasActive) {
+
+      if (this._stopRequested) {
+        // stop() 被调用 → 在这里检查最终结果（此时 onresult 已异步返回）
+        this._stopRequested = false;
+        const text = this._finalText.trim();
+        if (text) {
+          this._onResult(text);
+          this._onEnd(null);
+        } else {
+          this._onEnd('no-speech');
+        }
+      } else if (wasActive) {
+        // 浏览器意外结束（切标签页等）
         this._onEnd('unexpected');
       }
     };
@@ -107,7 +119,6 @@ class VoiceInput {
   _resetSilenceTimer() {
     this._clearSilenceTimer();
     this._silenceTimer = setTimeout(() => {
-      // 静默超时，自动停止
       this.stop();
     }, this._SILENCE_TIMEOUT);
   }
@@ -119,13 +130,12 @@ class VoiceInput {
     }
   }
 
-  /** 开始语音识别。需在用户手势（pointerdown）中调用以满足浏览器自动播放策略。 */
+  /** 开始语音识别。需在用户手势（pointerdown）中调用。 */
   start() {
     if (this._isActive) return;
     try {
       this._recognition.start();
     } catch (e) {
-      // 如果已经在运行，忽略
       if (e.name === 'InvalidStateError') {
         // 已经在识别中，无操作
       } else {
@@ -134,26 +144,18 @@ class VoiceInput {
     }
   }
 
-  /** 停止识别并获取最终结果。如果识别到文字则回调 onResult，否则回调 onEnd(null)。 */
+  /** 停止识别。结果通过 onResult/onEnd 回调异步返回（在 onend 事件中处理）。 */
   stop() {
     this._clearSilenceTimer();
     if (!this._isActive) return;
 
+    // 标记由我们主动停止，结果在 onend 中处理
+    this._stopRequested = true;
     try {
       this._recognition.stop();
     } catch (e) {
+      this._stopRequested = false;
       if (e.name !== 'InvalidStateError') throw e;
-    }
-
-    this._isActive = false;
-
-    // 处理结果
-    const text = this._finalText.trim();
-    if (text) {
-      this._onResult(text);
-      this._onEnd(null); // null = success
-    } else {
-      this._onEnd('no-speech');
     }
   }
 
@@ -161,6 +163,7 @@ class VoiceInput {
   abort() {
     this._clearSilenceTimer();
     this._finalText = '';
+    this._stopRequested = false;
 
     try {
       this._recognition.abort();
