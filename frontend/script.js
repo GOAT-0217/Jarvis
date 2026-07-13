@@ -773,75 +773,125 @@ createApp({
 
         // ========== Attachment Upload Methods ==========
 
-        /** 点击加号 — 切换附件菜单 */
+        /** 点击附件按钮 — 直接打开文件选择器 */
         handleAttachClick(event) {
             event.stopPropagation();
             if (this.isLoading) return;
+
             if (this.attachments.length >= 5) {
-                alert('最多只能添加5个附件');
+                alert('最多只能添加 5 个附件');
                 return;
             }
+
             if (this.$refs.attachFileInput) {
                 this.$refs.attachFileInput.click();
             }
         },
 
-
-        /** 文件选择后的上传处理 — 添加附件 chip 并调用 /attachments/extract */
+        /** 文件选择后的处理 — 统一处理文档和图片 */
         handleAttachFileSelect(event) {
             const files = event.target.files;
             if (!files || files.length === 0) return;
 
             const file = files[0];
+            const fileExt = file.name.split('.').pop().toLowerCase();
 
-            const tempId = 'att_' + Date.now();
-            this.attachments.push({
-                id: tempId,
-                type: file.type.startsWith('image/') ? 'image' : 'file',
-                content: null,
+            // 检查数量上限
+            if (this.attachments.length >= 5) {
+                alert('最多只能添加 5 个附件');
+                event.target.value = '';
+                return;
+            }
+
+            const attachmentId = 'att_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+
+            if (['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(fileExt)) {
+                this._handleImageFile(file, attachmentId);
+            } else if (['pdf', 'doc', 'docx', 'xls', 'xlsx'].includes(fileExt)) {
+                this._handleDocumentFile(file, attachmentId);
+            } else {
+                alert('不支持的文件类型：' + file.name);
+            }
+
+            // 清空 input，允许重复选择同一文件
+            event.target.value = '';
+        },
+
+        /** 处理图片文件 — FileReader 转 base64 */
+        _handleImageFile(file, attachmentId) {
+            // 检查大小
+            if (file.size > 10 * 1024 * 1024) {
+                alert('图片文件不能超过 10MB');
+                return;
+            }
+
+            const chip = {
+                id: attachmentId,
+                type: 'image',
+                content: '',
                 filename: file.name,
                 mime_type: file.type,
-                status: 'extracting'
-            });
+                status: 'extracting',
+            };
+            this.attachments.push(chip);
+
+            const reader = new FileReader();
+            reader.onload = () => {
+                chip.content = reader.result;
+                chip.status = 'ready';
+            };
+            reader.onerror = () => {
+                chip.status = 'error';
+            };
+            reader.readAsDataURL(file);
+        },
+
+        /** 处理文档文件 — 上传到 /attachments/extract 提取文本 */
+        _handleDocumentFile(file, attachmentId) {
+            const chip = {
+                id: attachmentId,
+                type: 'text',
+                content: '',
+                filename: file.name,
+                mime_type: file.type,
+                status: 'extracting',
+            };
+            this.attachments.push(chip);
 
             const formData = new FormData();
             formData.append('file', file);
 
-            this.authFetch('/attachments/extract', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => {
-                if (!response.ok) throw new Error('Extraction failed');
-                return response.json();
-            })
-            .then(data => {
-                const idx = this.attachments.findIndex(a => a.id === tempId);
-                if (idx !== -1) {
-                    this.attachments[idx] = {
-                        id: data.id,
-                        type: data.type,
-                        content: data.content,
-                        filename: data.filename,
-                        mime_type: data.mime_type,
-                        status: 'ready'
-                    };
-                }
-            })
-            .catch(error => {
-                const idx = this.attachments.findIndex(a => a.id === tempId);
-                if (idx !== -1) {
-                    this.attachments[idx].status = 'error';
-                }
-            });
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/attachments/extract');
+            xhr.setRequestHeader('Authorization', `Bearer ${this.token}`);
 
-            // 清空 input，允许重复上传同一文件
-            event.target.value = '';
+            xhr.onload = () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    try {
+                        const data = JSON.parse(xhr.responseText);
+                        chip.content = data.text;
+                        chip.status = data.char_count > 0 ? 'ready' : 'ready';
+                        if (data.char_count === 0) {
+                            chip.content = '(文件内容为空)';
+                        }
+                    } catch (e) {
+                        chip.status = 'error';
+                    }
+                } else {
+                    chip.status = 'error';
+                }
+            };
+
+            xhr.onerror = () => {
+                chip.status = 'error';
+            };
+
+            xhr.send(formData);
         },
 
-        /** 移除指定索引的附件 chip */
-        removeAttachment(idx) {
-            this.attachments.splice(idx, 1);
+        /** 移除单个附件 */
+        removeAttachment(index) {
+            this.attachments.splice(index, 1);
         },
 
         getFileIcon(fileType) {
