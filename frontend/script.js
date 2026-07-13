@@ -850,7 +850,8 @@ createApp({
         // ========== Attachment Upload Methods ==========
 
         /** 点击加号 — 切换附件菜单 */
-        handleAttachClick() {
+        handleAttachClick(event) {
+            event.stopPropagation();
             if (this.isLoading) return;
             this.showAttachMenu = !this.showAttachMenu;
         },
