@@ -1,6 +1,6 @@
 # Jarvis
 
-> 基于 LangChain Agent + RAG 的企业级 AI 知识助手，支持多模态输入、混合检索与流式对话。
+> 基于 LangChain Agent + RAG 的多模态企业级 AI 知识助手，支持多模态输入、混合检索与流式对话。
 
 **Version:** v0.0.2 | **License:** MIT | **Python:** 3.12+
 
