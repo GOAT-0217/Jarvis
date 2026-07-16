@@ -518,9 +518,26 @@ async def chat_with_agent_stream(user_text: str, user_id: str = "default_user", 
                 stream_mode="messages",
                 config={"recursion_limit": 8},
             ):
-                if not isinstance(msg, AIMessageChunk):
+                # 工具调用事件
+                if isinstance(msg, AIMessageChunk) and getattr(msg, "tool_call_chunks", None):
+                    for tc in msg.tool_call_chunks:
+                        name = getattr(tc, "name", None)
+                        args = getattr(tc, "args", None)
+                        if name:
+                            # 组合参数（可能跨多个 chunk）
+                            info = {"type": "tool", "tool": "call", "name": name, "args": str(args) if args else ""}
+                            await output_queue.put(info)
                     continue
-                if getattr(msg, "tool_call_chunks", None):
+
+                # 工具返回结果
+                if hasattr(msg, "type") and msg.type == "tool":
+                    tool_name = getattr(msg, "name", "unknown")
+                    result_preview = str(msg.content)[:200] if msg.content else ""
+                    info = {"type": "tool", "tool": "result", "name": tool_name, "detail": result_preview}
+                    await output_queue.put(info)
+                    continue
+
+                if not isinstance(msg, AIMessageChunk):
                     continue
 
                 content = ""

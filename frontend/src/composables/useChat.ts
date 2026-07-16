@@ -127,6 +127,13 @@ export function useChat() {
               cur.ragSteps.push(data.step)
             } else if (data.type === 'trace') {
               cur.ragTrace = data.rag_trace
+            } else if (data.type === 'tool') {
+              if (!cur.ragSteps) cur.ragSteps = []
+              if (data.tool === 'call') {
+                cur.ragSteps.push({ icon: '🔧', label: `调用 ${data.name}`, detail: data.args || '' })
+              } else if (data.tool === 'result') {
+                cur.ragSteps.push({ icon: '✅', label: `${data.name} 返回`, detail: data.detail || '' })
+              }
             } else if (typeof data.content === 'string') {
               cur.content += data.content
             } else if (typeof data === 'string') {
