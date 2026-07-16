@@ -213,7 +213,7 @@ function particleStyle(n: number) {
 }
 
 .card-inner {
-  background: rgba(15, 23, 42, 0.75);
+  background: rgba(26, 32, 50, 0.82);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid rgba(64, 158, 255, 0.15);

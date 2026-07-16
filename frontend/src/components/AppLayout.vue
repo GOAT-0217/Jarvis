@@ -104,7 +104,7 @@ const isCollapsed = ref(false)
 .app-header {
   height: 56px;
   padding: 0 20px;
-  background: rgba(15, 23, 41, 0.75);
+  background: rgba(30, 36, 55, 0.78);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--border-subtle);

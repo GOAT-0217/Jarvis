@@ -110,6 +110,6 @@ async function handleSend(text: string) {
 .chat-input-area {
   padding: 16px 24px;
   border-top: 1px solid var(--border-subtle);
-  background: rgba(15, 23, 41, 0.5);
+  background: rgba(34, 41, 64, 0.55);
 }
 </style>

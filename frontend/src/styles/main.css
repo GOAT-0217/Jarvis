@@ -1,17 +1,17 @@
-/* ===== 全局暗色主题 ===== */
+/* ===== 全局石板灰主题 ===== */
 :root {
-  --bg-deep: #0a0e17;
-  --bg-sidebar: #0c111d;
-  --bg-surface: #0f1729;
-  --bg-card: rgba(15, 23, 42, 0.85);
-  --border-subtle: rgba(64, 158, 255, 0.08);
-  --border-active: rgba(64, 158, 255, 0.2);
-  --text-primary: #e2e8f0;
-  --text-secondary: #94a3b8;
-  --text-muted: rgba(148, 163, 184, 0.5);
+  --bg-deep: #1a1f2e;
+  --bg-sidebar: #1e2435;
+  --bg-surface: #222940;
+  --bg-card: rgba(34, 41, 64, 0.92);
+  --border-subtle: rgba(100, 130, 180, 0.12);
+  --border-active: rgba(64, 158, 255, 0.25);
+  --text-primary: #e8ecf1;
+  --text-secondary: #a8b3c4;
+  --text-muted: rgba(168, 179, 196, 0.55);
   --accent: #409EFF;
   --accent-teal: #36cfc9;
-  --glow: rgba(64, 158, 255, 0.15);
+  --glow: rgba(64, 158, 255, 0.18);
 }
 
 /* ===== Element Plus 暗色覆盖 ===== */
@@ -23,9 +23,9 @@
   --el-border-color-lighter: var(--border-subtle);
   --el-text-color-primary: var(--text-primary);
   --el-text-color-regular: var(--text-secondary);
-  --el-fill-color-blank: rgba(30, 41, 59, 0.6);
-  --el-fill-color: rgba(30, 41, 59, 0.4);
-  --el-fill-color-light: rgba(30, 41, 59, 0.3);
+  --el-fill-color-blank: rgba(40, 50, 75, 0.6);
+  --el-fill-color: rgba(40, 50, 75, 0.45);
+  --el-fill-color-light: rgba(40, 50, 75, 0.35);
   --el-color-primary: var(--accent);
 }
 
@@ -49,7 +49,7 @@ body {
 .el-table {
   --el-table-bg-color: transparent;
   --el-table-tr-bg-color: transparent;
-  --el-table-header-bg-color: rgba(30, 41, 59, 0.5);
+  --el-table-header-bg-color: rgba(40, 50, 75, 0.5);
   --el-table-row-hover-bg-color: rgba(64, 158, 255, 0.06);
   --el-table-border-color: var(--border-subtle);
   --el-table-text-color: var(--text-primary);
@@ -57,10 +57,10 @@ body {
   font-size: 14px;
 }
 .el-table th.el-table__cell {
-  background: rgba(30, 41, 59, 0.5);
+  background: rgba(40, 50, 75, 0.55);
 }
 .el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
-  background: rgba(30, 41, 59, 0.2);
+  background: rgba(40, 50, 75, 0.25);
 }
 
 /* 分页 */
@@ -71,10 +71,10 @@ body {
 }
 .el-pagination .btn-prev,
 .el-pagination .btn-next {
-  background: rgba(30, 41, 59, 0.4) !important;
+  background: rgba(40, 50, 75, 0.45) !important;
 }
 .el-pagination .el-pager li {
-  background: rgba(30, 41, 59, 0.4) !important;
+  background: rgba(40, 50, 75, 0.45) !important;
   color: var(--text-secondary) !important;
 }
 .el-pagination .el-pager li.is-active {
@@ -95,7 +95,7 @@ body {
 
 /* 输入框全局 */
 .el-input__wrapper {
-  background: rgba(30, 41, 59, 0.5) !important;
+  background: rgba(40, 50, 75, 0.5) !important;
   border: 1px solid var(--border-subtle) !important;
   box-shadow: none !important;
 }
@@ -119,7 +119,7 @@ body {
 .el-dialog,
 .el-message-box,
 .el-popover {
-  background: rgba(15, 23, 41, 0.96) !important;
+  background: rgba(34, 41, 64, 0.97) !important;
   border: 1px solid var(--border-active) !important;
   backdrop-filter: blur(24px);
 }
@@ -149,7 +149,7 @@ body {
 
 /* 骨架屏 */
 .el-skeleton__item {
-  background: rgba(30, 41, 59, 0.4) !important;
+  background: rgba(40, 50, 75, 0.4) !important;
 }
 
 /* 表单标签 */
