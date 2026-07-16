@@ -37,7 +37,7 @@
           <el-tag
             v-for="tag in filteredTags" :key="tag.id" :color="tag.color"
             closable @close="handleDeleteTag(tag.id)"
-            style="margin: 4px"
+            style="margin: 4px; color: #fff; border-color: transparent"
           >
             {{ tag.name }}
           </el-tag>

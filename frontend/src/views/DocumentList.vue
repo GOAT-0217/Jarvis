@@ -62,7 +62,7 @@
                       size="small"
                       closable
                       @close="removeTag(row, t)"
-                      style="margin: 1px 2px"
+                      style="margin: 1px 2px; color: #fff"
                     >
                       {{ t }}
                     </el-tag>
