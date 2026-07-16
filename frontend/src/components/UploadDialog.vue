@@ -30,7 +30,6 @@
           <template v-else>
             <el-button @click="showNewTag = true" size="default" style="flex-shrink: 0">+ 新建</el-button>
           </template>
-          </template>
         </div>
       </el-form-item>
 
