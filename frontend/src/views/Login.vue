@@ -23,38 +23,37 @@
           <p class="brand-sub">Enterprise AI Knowledge Workshop</p>
         </div>
 
-        <el-form @submit.prevent="handleLogin">
+        <el-form @submit.prevent="handleSubmit">
           <el-form-item>
-            <el-input
-              v-model="username"
-              placeholder="用户名"
-              prefix-icon="User"
-              size="large"
-            />
+            <el-input v-model="username" placeholder="用户名" size="large" />
+          </el-form-item>
+          <el-form-item v-if="isRegister">
+            <el-input v-model="nickname" placeholder="昵称（选填）" size="large" />
+          </el-form-item>
+          <el-form-item v-if="isRegister">
+            <el-input v-model="email" placeholder="邮箱（选填）" size="large" />
           </el-form-item>
           <el-form-item>
-            <el-input
-              v-model="password"
-              type="password"
-              placeholder="密码"
-              prefix-icon="Lock"
-              show-password
-              size="large"
-            />
+            <el-input v-model="password" type="password" placeholder="密码" show-password size="large" />
+          </el-form-item>
+          <el-form-item v-if="isRegister">
+            <el-input v-model="confirmPassword" type="password" placeholder="确认密码" show-password size="large" />
           </el-form-item>
           <el-form-item>
-            <el-button
-              native-type="submit"
-              :loading="loading"
-              size="large"
-              class="login-btn"
-            >
-              {{ loading ? '验证中…' : '登 录' }}
+            <el-button native-type="submit" :loading="loading" size="large" class="login-btn">
+              {{ loading ? (isRegister ? '注册中…' : '验证中…') : (isRegister ? '注 册' : '登 录') }}
             </el-button>
           </el-form-item>
         </el-form>
 
-        <p class="footer-hint">企业 AI 知识工坊 · v1.0</p>
+        <p class="footer-hint">
+          <span v-if="!isRegister">
+            没有账号？<a href="#" @click.prevent="toggleMode" class="footer-link">立即注册</a>
+          </span>
+          <span v-else>
+            已有账号？<a href="#" @click.prevent="toggleMode" class="footer-link">返回登录</a>
+          </span>
+        </p>
       </div>
     </div>
   </div>
@@ -65,20 +64,54 @@ import { ref } from 'vue'
 import { useAuth } from '@/composables/useAuth'
 import bgImage from '@/assets/images/Jarvis登录背景图.png'
 
-const username = ref('')
-const password = ref('')
-const loading = ref(false)
-const { doLogin } = useAuth()
+const isRegister = ref(false)
 
-async function handleLogin() {
-  loading.value = true
-  try {
-    await doLogin({ username: username.value, password: password.value })
-  } catch (e: any) {
-    alert(e.message || '登录失败')
-  } finally {
-    loading.value = false
+const username = ref('')
+const nickname = ref('')
+const email = ref('')
+const password = ref('')
+const confirmPassword = ref('')
+const loading = ref(false)
+const { doLogin, doRegister } = useAuth()
+
+async function handleSubmit() {
+  if (isRegister.value) {
+    if (password.value !== confirmPassword.value) {
+      alert('两次密码不一致')
+      return
+    }
+    loading.value = true
+    try {
+      await doRegister({
+        username: username.value,
+        password: password.value,
+        nickname: nickname.value || undefined,
+        email: email.value || undefined,
+      })
+    } catch (e: any) {
+      alert(e.message || '注册失败')
+    } finally {
+      loading.value = false
+    }
+  } else {
+    loading.value = true
+    try {
+      await doLogin({ username: username.value, password: password.value })
+    } catch (e: any) {
+      alert(e.message || '登录失败')
+    } finally {
+      loading.value = false
+    }
   }
+}
+
+function toggleMode() {
+  isRegister.value = !isRegister.value
+  username.value = ''
+  nickname.value = ''
+  email.value = ''
+  password.value = ''
+  confirmPassword.value = ''
 }
 
 function particleStyle(n: number) {
@@ -278,9 +311,17 @@ function particleStyle(n: number) {
 /* ===== 底部 ===== */
 .footer-hint {
   text-align: center;
-  margin: 20px 0 0;
-  font-size: 12px;
-  color: rgba(148, 163, 184, 0.4);
-  letter-spacing: 1px;
+  margin: 16px 0 0;
+  font-size: 13px;
+  color: rgba(148, 163, 184, 0.5);
+}
+
+.footer-link {
+  color: rgba(64, 158, 255, 0.7);
+  text-decoration: none;
+  cursor: pointer;
+}
+.footer-link:hover {
+  color: #409EFF;
 }
 </style>

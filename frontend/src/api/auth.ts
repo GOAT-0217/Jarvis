@@ -8,6 +8,8 @@ export interface LoginParams {
 export interface RegisterParams {
   username: string
   password: string
+  nickname?: string
+  email?: string
   role?: string
   admin_code?: string
 }
@@ -22,6 +24,8 @@ export interface AuthData {
 export interface CurrentUserData {
   username: string
   role: string
+  nickname?: string
+  email?: string
 }
 
 export function login(params: LoginParams) {
@@ -34,4 +38,8 @@ export function register(params: RegisterParams) {
 
 export function getMe() {
   return client.get<any, { data: CurrentUserData }>('/auth/me')
+}
+
+export function changePassword(params: { old_password: string; new_password: string }) {
+  return client.put<any, { data: { message: string } }>('/auth/password', params)
 }

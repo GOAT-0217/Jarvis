@@ -20,7 +20,12 @@ export function useAuth() {
   async function doLogin(params: LoginParams) {
     const res = await apiLogin(params)
     token.value = res.data.access_token
-    currentUser.value = { username: res.data.username, role: res.data.role }
+    currentUser.value = {
+      username: res.data.username,
+      role: res.data.role,
+      nickname: (res.data as any).nickname ?? undefined,
+      email: (res.data as any).email ?? undefined,
+    }
     localStorage.setItem('accessToken', res.data.access_token)
     localStorage.setItem('currentUser', JSON.stringify(currentUser.value))
     router.push('/chat')
@@ -29,7 +34,12 @@ export function useAuth() {
   async function doRegister(params: RegisterParams) {
     const res = await apiRegister(params)
     token.value = res.data.access_token
-    currentUser.value = { username: res.data.username, role: res.data.role }
+    currentUser.value = {
+      username: res.data.username,
+      role: res.data.role,
+      nickname: params.nickname ?? undefined,
+      email: params.email ?? undefined,
+    }
     localStorage.setItem('accessToken', res.data.access_token)
     localStorage.setItem('currentUser', JSON.stringify(currentUser.value))
     router.push('/chat')
