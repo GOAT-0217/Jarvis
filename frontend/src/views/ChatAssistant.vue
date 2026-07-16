@@ -96,7 +96,8 @@ async function saveTitle() {
     if (s) s.title = newTitle
     await loadSessions()
   } catch (e: any) {
-    // 静默失败
+    console.error('重命名失败:', e)
+    alert(e?.response?.data?.message || e.message || '重命名失败')
   }
 }
 
