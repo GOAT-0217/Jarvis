@@ -11,7 +11,8 @@
     <el-row :gutter="24">
       <el-col :span="12">
         <h3>分类列表</h3>
-        <el-table :data="categories" stripe>
+        <el-input v-model="catSearch" placeholder="搜索分类…" clearable size="small" style="margin-bottom: 8px" />
+        <el-table :data="filteredCategories" stripe>
           <el-table-column prop="name" label="名称" />
           <el-table-column label="操作" width="100">
             <template #default="{ row }">
@@ -31,9 +32,10 @@
 
       <el-col :span="12">
         <h3>标签列表</h3>
+        <el-input v-model="tagSearch" placeholder="搜索标签…" clearable size="small" style="margin-bottom: 8px" />
         <div>
           <el-tag
-            v-for="tag in tags" :key="tag.id" :color="tag.color"
+            v-for="tag in filteredTags" :key="tag.id" :color="tag.color"
             closable @close="handleDeleteTag(tag.id)"
             style="margin: 4px"
           >
@@ -55,17 +57,30 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { listCategories, createCategory, deleteCategory, listTags, createTag, deleteTag } from '@/api/knowledge'
 import type { CatItem, TagItem } from '@/api/knowledge'
 
 const categories = ref<CatItem[]>([])
 const tags = ref<TagItem[]>([])
+const catSearch = ref('')
+const tagSearch = ref('')
 const showAddCat = ref(false)
 const showAddTag = ref(false)
 const newCatName = ref('')
 const newTagName = ref('')
 const newTagColor = ref('#409EFF')
+
+const filteredCategories = computed(() =>
+  catSearch.value
+    ? categories.value.filter(c => c.name.includes(catSearch.value))
+    : categories.value
+)
+const filteredTags = computed(() =>
+  tagSearch.value
+    ? tags.value.filter(t => t.name.includes(tagSearch.value))
+    : tags.value
+)
 
 async function fetchData() {
   const [catRes, tagRes] = await Promise.all([listCategories(), listTags()])

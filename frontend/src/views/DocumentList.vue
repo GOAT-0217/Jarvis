@@ -5,6 +5,17 @@
       <el-button type="primary" @click="showUpload = true">上传文档</el-button>
     </div>
 
+    <!-- 搜索框 -->
+    <el-input
+      v-model="searchText"
+      placeholder="搜索文档名称…"
+      clearable
+      :prefix-icon="Search"
+      style="margin-bottom: 12px"
+      @input="onSearch"
+      @clear="onSearch"
+    />
+
     <!-- 分类筛选标签 -->
     <div class="category-filters">
       <span
@@ -99,10 +110,21 @@
 import { ref, onMounted } from 'vue'
 import { listDocuments, deleteDocument, listTrashDocuments, restoreDocument, listCategories, updateDocCategory } from '@/api/knowledge'
 import type { DocItem, CatItem } from '@/api/knowledge'
+import { Search } from '@element-plus/icons-vue'
 import DataState from '@/components/DataState.vue'
 import UploadDialog from '@/components/UploadDialog.vue'
 
 const CAT_COLORS = ['#5eead4', '#a78bfa', '#f59e0b', '#3b82f6', '#ef4444', '#22c55e', '#ec4899', '#6366f1']
+
+const searchText = ref('')
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+function onSearch() {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    page.value = 1
+    fetchData()
+  }, 300)
+}
 
 const documents = ref<DocItem[]>([])
 const loading = ref(true)
@@ -160,6 +182,7 @@ async function fetchData() {
       page: page.value,
       page_size: 20,
       category_id: selectedCategory.value || undefined,
+      search: searchText.value || undefined,
     })
     documents.value = res.data.items
     total.value = res.data.total
