@@ -92,26 +92,26 @@ async function handleSend(text: string) {
 .chat-sidebar {
   width: 260px;
   border-right: 1px solid var(--border-card);
-  background: #fff;
+  background: var(--bg-card);
 }
 
 .chat-main {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: #fff;
+  background: var(--bg-card);
 }
 
 .chat-messages {
   flex: 1;
   overflow-y: auto;
   padding: 24px 32px;
-  background: #f6f8fa;
+  background: var(--bg-content);
 }
 
 .chat-input-area {
   padding: 16px 24px;
   border-top: 1px solid var(--border-card);
-  background: #fff;
+  background: var(--bg-card);
 }
 </style>

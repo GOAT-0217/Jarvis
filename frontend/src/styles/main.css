@@ -1,28 +1,27 @@
-/* ===== GitHub 风格专业主题 ===== */
+/* ===== JARVIS 统一柔和主题 ===== */
 :root {
-  --bg-content: #f6f8fa;
+  --bg-content: #eeeff2;
   --bg-sidebar: #24292f;
-  --bg-card: #ffffff;
-  --bg-input: #f6f8fa;
-  --bg-hover: #f3f4f6;
+  --bg-card: #f7f7f8;
+  --bg-input: #e8e9ed;
+  --bg-hover: rgba(0, 0, 0, 0.04);
 
-  --border-card: #d0d7de;
-  --border-input: #d0d7de;
+  --border-card: #d9dbe0;
+  --border-input: #c8cad0;
   --border-sidebar: #373e47;
 
-  --text-heading: #1f2328;
-  --text-body: #24292f;
-  --text-secondary: #656d76;
-  --text-muted: #8b949e;
+  --text-heading: #1b1d24;
+  --text-body: #2a2c33;
+  --text-secondary: #5e6068;
+  --text-muted: #94969c;
   --text-sidebar: #e6edf3;
   --text-sidebar-muted: #8b949e;
 
   --accent: #0969da;
   --accent-hover: #0860ca;
-  --accent-gradient: linear-gradient(135deg, #0969da 0%, #218bff 100%);
 
-  --shadow-card: 0 1px 0 rgba(27, 31, 36, 0.04);
-  --shadow-card-hover: 0 3px 12px rgba(27, 31, 36, 0.1);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-card-hover: 0 3px 12px rgba(0, 0, 0, 0.08);
 
   --radius-sm: 6px;
   --radius-md: 8px;
@@ -31,16 +30,16 @@
 
 /* ===== Element Plus 覆盖 ===== */
 :root {
-  --el-bg-color: #ffffff;
-  --el-bg-color-overlay: #ffffff;
+  --el-bg-color: var(--bg-card);
+  --el-bg-color-overlay: var(--bg-card);
   --el-border-color: var(--border-card);
-  --el-border-color-light: #e8eaed;
-  --el-border-color-lighter: #e8eaed;
+  --el-border-color-light: #e0e2e6;
+  --el-border-color-lighter: #e0e2e6;
   --el-text-color-primary: var(--text-body);
   --el-text-color-regular: var(--text-secondary);
   --el-fill-color-blank: var(--bg-input);
-  --el-fill-color: #f6f8fa;
-  --el-fill-color-light: #fafbfc;
+  --el-fill-color: #edeef1;
+  --el-fill-color-light: #f3f4f6;
   --el-color-primary: var(--accent);
   --el-border-radius-base: var(--radius-sm);
 }
@@ -63,26 +62,23 @@ body {
 .el-table {
   --el-table-bg-color: transparent;
   --el-table-tr-bg-color: transparent;
-  --el-table-header-bg-color: var(--bg-content);
-  --el-table-row-hover-bg-color: var(--bg-hover);
+  --el-table-header-bg-color: #e8e9ed;
+  --el-table-row-hover-bg-color: rgba(0, 0, 0, 0.03);
   --el-table-border-color: var(--border-card);
   --el-table-text-color: var(--text-body);
   --el-table-header-text-color: var(--text-secondary);
   font-size: 14px;
 }
 .el-table th.el-table__cell {
-  background: var(--bg-content);
+  background: #e8e9ed;
   font-weight: 600;
-  border-bottom: 2px solid var(--border-card);
+  border-bottom: 1px solid var(--border-card);
 }
 .el-table td.el-table__cell {
-  border-bottom: 1px solid #e8eaed;
-}
-.el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
-  background: rgba(246, 248, 250, 0.5);
+  border-bottom: 1px solid #e4e5ea;
 }
 .el-table .el-table__body tr:hover > td.el-table__cell {
-  background: var(--bg-hover) !important;
+  background: rgba(0, 0, 0, 0.03) !important;
 }
 
 /* ===== 分页 ===== */
@@ -91,12 +87,12 @@ body {
 }
 .el-pagination .btn-prev,
 .el-pagination .btn-next {
-  background: #fff !important;
+  background: var(--bg-card) !important;
   border: 1px solid var(--border-card) !important;
   border-radius: var(--radius-sm) !important;
 }
 .el-pagination .el-pager li {
-  background: #fff !important;
+  background: var(--bg-card) !important;
   border: 1px solid var(--border-card) !important;
   border-radius: var(--radius-sm) !important;
   color: var(--text-body) !important;
@@ -109,7 +105,7 @@ body {
 
 /* ===== 卡片 ===== */
 .el-card {
-  background: #fff !important;
+  background: var(--bg-card) !important;
   border: 1px solid var(--border-card) !important;
   border-radius: var(--radius-md) !important;
   box-shadow: var(--shadow-card);
@@ -121,7 +117,7 @@ body {
   border-bottom: 1px solid var(--border-card) !important;
   color: var(--text-heading);
   font-weight: 600;
-  background: #fafbfc;
+  background: #f3f3f5;
   border-radius: var(--radius-md) var(--radius-md) 0 0;
 }
 
@@ -134,11 +130,11 @@ body {
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 .el-input__wrapper:hover {
-  border-color: #8b949e !important;
+  border-color: #9a9da3 !important;
 }
 .el-input__wrapper.is-focus {
   border-color: var(--accent) !important;
-  box-shadow: 0 0 0 2px rgba(9, 105, 218, 0.15) !important;
+  box-shadow: 0 0 0 2px rgba(9, 105, 218, 0.12) !important;
   background: #fff !important;
 }
 .el-input__inner {
@@ -154,10 +150,10 @@ body {
 .el-dialog,
 .el-message-box,
 .el-popover {
-  background: #fff !important;
+  background: var(--bg-card) !important;
   border: 1px solid var(--border-card) !important;
   border-radius: var(--radius-md) !important;
-  box-shadow: 0 8px 24px rgba(140, 149, 159, 0.2) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1) !important;
 }
 .el-select-dropdown__item,
 .el-dropdown-menu__item {
@@ -195,7 +191,7 @@ body {
 
 /* ===== 骨架屏 ===== */
 .el-skeleton__item {
-  background: #e8eaed !important;
+  background: #dcdde2 !important;
 }
 
 /* ===== 表单 ===== */
@@ -249,10 +245,10 @@ body {
 /* ===== 按钮 ===== */
 .el-button--primary {
   background: var(--accent) !important;
-  border: 1px solid rgba(27, 31, 36, 0.15) !important;
+  border: 1px solid rgba(27, 31, 36, 0.12) !important;
   border-radius: var(--radius-sm) !important;
   font-weight: 500;
-  box-shadow: 0 1px 0 rgba(27, 31, 36, 0.04);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
   transition: background 0.2s;
 }
 .el-button--primary:hover {
@@ -269,7 +265,7 @@ body {
 
 /* ===== 弹窗遮罩 ===== */
 .el-overlay {
-  background: rgba(27, 31, 36, 0.3) !important;
+  background: rgba(27, 31, 36, 0.25) !important;
 }
 
 /* ===== 下拉菜单 ===== */
@@ -286,11 +282,16 @@ body {
 
 /* ===== 消息提示 ===== */
 .el-message {
-  background: #fff !important;
+  background: var(--bg-card) !important;
   border: 1px solid var(--border-card) !important;
   border-radius: var(--radius-md) !important;
-  box-shadow: 0 8px 24px rgba(140, 149, 159, 0.2) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1) !important;
 }
 .el-message__content {
   color: var(--text-body) !important;
+}
+
+/* ===== 斑马纹表格补充 ===== */
+.el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
+  background: rgba(0, 0, 0, 0.015);
 }

@@ -95,19 +95,19 @@ const isCollapsed = ref(false)
   border-top: 1px solid #373e47;
 }
 
-/* ===== 顶栏 — 白色 ===== */
+/* ===== 顶栏 ===== */
 .app-header {
   height: 56px;
   padding: 0 20px;
-  background: #fff;
-  border-bottom: 1px solid #d0d7de;
+  background: var(--bg-content);
+  border-bottom: 1px solid var(--border-card);
   display: flex;
   align-items: center;
 }
 
-/* ===== 内容区 — 浅灰底 ===== */
+/* ===== 内容区 ===== */
 .app-main {
-  background: #f6f8fa;
+  background: var(--bg-content);
   padding: 24px;
   min-height: 0;
 }
