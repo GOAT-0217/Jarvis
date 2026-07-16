@@ -67,6 +67,7 @@ export function useChat() {
     messages.value.push(assistantMsg)
 
     isStreaming.value = true
+    const lastIdx = messages.value.length - 1
     const controller = new AbortController()
     abortController.value = controller
 
@@ -78,7 +79,7 @@ export function useChat() {
       })
 
       if (!response.body) {
-        assistantMsg.content = '[错误] 响应流不可用'
+        messages.value[lastIdx] = { ...messages.value[lastIdx], content: '[错误] 响应流不可用' }
         console.error('response.body is null')
         return
       }
@@ -104,23 +105,28 @@ export function useChat() {
           try {
             const data = JSON.parse(payload)
             console.log('SSE event:', data.type, typeof data.content === 'string' ? data.content.slice(0, 20) : data.content)
+            const cur = messages.value[lastIdx]
             if (data.type === 'error') {
-              assistantMsg.content = `[错误] ${data.content}`
+              cur.content = `[错误] ${data.content}`
             } else if (data.type === 'content' || data.type === 'text') {
-              assistantMsg.content += data.content || data.text || ''
+              cur.content += data.content || data.text || ''
             } else if (typeof data.content === 'string') {
-              assistantMsg.content += data.content
+              cur.content += data.content
             } else if (typeof data === 'string') {
-              assistantMsg.content += data
+              cur.content += data
             }
+            // 强制触发响应式更新
+            messages.value[lastIdx] = { ...cur }
           } catch {
-            assistantMsg.content += payload
+            const cur = messages.value[lastIdx]
+            cur.content += payload
+            messages.value[lastIdx] = { ...cur }
           }
         }
       }
     } catch (e: any) {
       if (e.name !== 'AbortError') {
-        assistantMsg.content = `[错误] ${e.message || '请求失败'}`
+        messages.value[lastIdx] = { ...messages.value[lastIdx], content: `[错误] ${e.message || '请求失败'}` }
         console.error('AI 请求失败:', e)
       }
     } finally {
