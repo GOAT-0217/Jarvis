@@ -10,22 +10,30 @@ from fastapi.testclient import TestClient
 from app import create_app
 from core.database import SessionLocal
 from core.security import get_password_hash
-from models import User, Category, Tag, Document
+from models import User, Category, Tag, Document, AuditLog
 
 app = create_app()
 client = TestClient(app)
 
 TEST_USER = "test_knowledge_user"
+TEST_USER_REGULAR = "test_knowledge_regular"
 TEST_PW = "test123"
 
 
 @pytest.fixture(autouse=True)
 def cleanup():
     db = SessionLocal()
-    db.query(User).filter(User.username == TEST_USER).delete()
+    # Delete audit logs for test users first (FK references)
+    for username in (TEST_USER, TEST_USER_REGULAR):
+        user = db.query(User).filter(User.username == username).first()
+        if user:
+            db.query(AuditLog).filter(AuditLog.user_id == user.id).delete()
+    # Now delete test documents, categories, tags
+    db.query(Document).filter(Document.filename.like("test_%")).delete()
     db.query(Category).filter(Category.name.like("test_%")).delete()
     db.query(Tag).filter(Tag.name.like("test_%")).delete()
-    db.query(Document).filter(Document.filename.like("test_%")).delete()
+    # Finally delete test users
+    db.query(User).filter(User.username.in_([TEST_USER, TEST_USER_REGULAR])).delete()
     db.commit()
     db.close()
     yield
@@ -143,7 +151,7 @@ def test_upload_rejects_empty_filename():
         headers=_headers(),
         files={"file": ("", b"content", "application/octet-stream")},
     )
-    assert resp.status_code == 400
+    assert resp.status_code in (400, 422)  # 422 if FastAPI validation rejects empty filename first
 
 
 def test_upload_rejects_unsupported_filetype():
@@ -174,14 +182,12 @@ def test_requires_auth():
 
 def test_requires_knowledge_admin():
     db = SessionLocal()
-    db.query(User).filter(User.username == "test_knowledge_regular").delete()
-    db.commit()
-    user = User(username="test_knowledge_regular", password_hash=get_password_hash(TEST_PW), role="user")
+    user = User(username=TEST_USER_REGULAR, password_hash=get_password_hash(TEST_PW), role="user")
     db.add(user)
     db.commit()
     db.close()
 
-    resp = client.post("/api/v1/auth/login", json={"username": "test_knowledge_regular", "password": TEST_PW})
+    resp = client.post("/api/v1/auth/login", json={"username": TEST_USER_REGULAR, "password": TEST_PW})
     token = resp.json()["data"]["access_token"]
 
     resp = client.get("/api/v1/knowledge/documents", headers={"Authorization": f"Bearer {token}"})
