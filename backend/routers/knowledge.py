@@ -2,7 +2,7 @@
 import os
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, Request, BackgroundTasks
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, Request, BackgroundTasks
 from sqlalchemy.orm import Session
 
 from core.security import get_current_user, get_db, require_knowledge_admin
@@ -51,8 +51,8 @@ async def upload_document(
     request: Request,
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    category_id: str | None = None,
-    tag_ids: str | None = None,  # comma-separated tag IDs
+    category_id: str | None = Form(None),
+    tag_ids: str | None = Form(None),  # comma-separated tag IDs
     current_user: User = Depends(require_knowledge_admin),
     db: Session = Depends(get_db),
 ):
