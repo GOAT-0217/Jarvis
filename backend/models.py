@@ -15,6 +15,8 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[str] = mapped_column(String(20), default="user", nullable=False)
+    nickname: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)  # 创建时间字段
 
     sessions = relationship("ChatSession", back_populates="user", cascade="all, delete-orphan")     # 定义User与ChatSession的一对多关系
