@@ -105,8 +105,8 @@ BASE_URL=https://your-llm-endpoint/v1
 ### 3. 启动数据层（Docker Compose）
 
 ```bash
-docker compose up -d postgres redis milvus
-docker compose ps  # 确认 postgres / redis / milvus 均为 Up
+docker compose up -d postgres redis etcd minio standalone
+docker compose ps  # 确认 postgres / redis / etcd / minio / standalone 均为 Up
 ```
 
 ### 4. 启动后端（开发模式）
