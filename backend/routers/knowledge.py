@@ -52,6 +52,7 @@ async def upload_document(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     category_id: str | None = None,
+    tag_ids: str | None = None,  # comma-separated tag IDs
     current_user: User = Depends(require_knowledge_admin),
     db: Session = Depends(get_db),
 ):
@@ -70,6 +71,16 @@ async def upload_document(
         f.write(content)
 
     doc = service.create_document_record(db, filename, str(file_path), len(content), file_type, current_user.id, category_id)
+
+    # 关联标签
+    if tag_ids:
+        from models import DocumentTag
+        for tid in tag_ids.split(",")[:5]:
+            tid = tid.strip()
+            if tid:
+                dt = DocumentTag(document_id=doc.id, tag_id=tid)
+                db.add(dt)
+        db.commit()
 
     background_tasks.add_task(service.process_document_async, doc.id, str(file_path), filename, category_id)
 
