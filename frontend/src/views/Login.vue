@@ -1,7 +1,8 @@
 <template>
   <div class="login-wrapper">
-    <!-- 背景 -->
-    <div class="bg-layer">
+    <!-- 背景图 -->
+    <div class="bg-layer" :style="{ backgroundImage: `url(${bgImage})` }">
+      <div class="bg-overlay" />
       <div class="bg-grid" />
       <div class="bg-glow bg-glow-1" />
       <div class="bg-glow bg-glow-2" />
@@ -62,6 +63,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useAuth } from '@/composables/useAuth'
+import bgImage from '@/assets/images/Jarvis登录背景图.png'
 
 const username = ref('')
 const password = ref('')
@@ -111,8 +113,17 @@ function particleStyle(n: number) {
 .bg-layer {
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, #0a0e17 0%, #0f1729 30%, #131c2e 60%, #0a0e17 100%);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   z-index: 0;
+}
+
+/* 暗色叠加层 — 让卡片文字可读 */
+.bg-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(10, 14, 23, 0.7) 0%, rgba(15, 23, 41, 0.55) 50%, rgba(10, 14, 23, 0.72) 100%);
 }
 
 /* 网格线 */
