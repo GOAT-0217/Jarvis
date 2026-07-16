@@ -34,7 +34,9 @@ async def list_documents(
     docs = [
         DocumentSchema(
             id=d.id, filename=d.filename, file_type=d.file_type, file_size=d.file_size,
-            status=d.status, category_id=d.category_id, char_count=d.char_count,
+            status=d.status, category_id=d.category_id,
+            category_name=d.category.name if d.category else None,
+            char_count=d.char_count,
             chunk_count=d.chunk_count, uploaded_by=str(d.uploaded_by) if d.uploaded_by else None,
             created_at=d.created_at.isoformat(),
             tags=[dt.tag.name for dt in d.tags_rel],
@@ -77,6 +79,24 @@ async def upload_document(
         uploaded_by=str(doc.uploaded_by) if doc.uploaded_by else None,
         created_at=doc.created_at.isoformat(), tags=[],
     ))
+
+
+@router.put("/documents/{doc_id}/category", response_model=APIResponse[dict])
+async def update_document_category(
+    doc_id: str,
+    body: dict,
+    current_user: User = Depends(require_knowledge_admin),
+    db: Session = Depends(get_db),
+):
+    """修改文档分类"""
+    category_id = (body.get("category_id") or "").strip() or None
+    doc = db.query(Document).filter(Document.id == doc_id, Document.deleted_at.is_(None)).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="文档不存在")
+    doc.category_id = category_id
+    db.commit()
+    cat_name = doc.category.name if doc.category else None
+    return APIResponse(data={"category_id": category_id, "category_name": cat_name})
 
 
 @router.delete("/documents/{doc_id}", response_model=APIResponse[dict])

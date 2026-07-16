@@ -200,6 +200,7 @@ class DocumentSchema(PydanticBaseModel):
     file_size: int
     status: str
     category_id: str | None = None
+    category_name: str | None = None
     char_count: int = 0
     chunk_count: int = 0
     uploaded_by: str | None = None

@@ -10,6 +10,7 @@ export interface DocItem {
   chunk_count: number
   uploaded_by: string
   created_at: string
+  category_name?: string
   tags: string[]
 }
 
@@ -53,6 +54,13 @@ export function listTrashDocuments(params: { page?: number; page_size?: number }
 
 export function restoreDocument(id: string) {
   return client.post<any, { data: any }>(`/knowledge/documents/${id}/restore`)
+}
+
+export function updateDocCategory(id: string, categoryId: string | null) {
+  return client.put<any, { data: { category_id: string | null; category_name: string | null } }>(
+    `/knowledge/documents/${id}/category`,
+    { category_id: categoryId || '' }
+  )
 }
 
 export function deleteCategory(id: string) {

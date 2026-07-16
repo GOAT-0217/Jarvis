@@ -28,12 +28,18 @@
           empty-text="还没有文档，上传第一份吧" @retry="fetchData">
           <el-table :data="documents" stripe>
             <el-table-column prop="filename" label="文件名" />
-            <el-table-column label="分类" width="100">
+            <el-table-column label="分类" width="120">
               <template #default="{ row }">
-                <span v-if="row.category_name" class="cat-label" :style="catStyle(row.category_name)">
-                  {{ row.category_name }}
-                </span>
-                <span v-else style="color: #6d6f78; font-size: 12px">未分类</span>
+                <el-select
+                  :model-value="row.category_name ? `${row.category_name}__${row.category_id}` : ''"
+                  placeholder="未分类"
+                  size="small"
+                  clearable
+                  @change="(val: string) => handleCatChange(row, val)"
+                  style="width: 100%"
+                >
+                  <el-option v-for="cat in categories" :key="cat.id" :label="cat.name" :value="`${cat.name}__${cat.id}`" />
+                </el-select>
               </template>
             </el-table-column>
             <el-table-column prop="file_type" label="格式" width="70" />
@@ -91,7 +97,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { listDocuments, deleteDocument, listTrashDocuments, restoreDocument, listCategories } from '@/api/knowledge'
+import { listDocuments, deleteDocument, listTrashDocuments, restoreDocument, listCategories, updateDocCategory } from '@/api/knowledge'
 import type { DocItem, CatItem } from '@/api/knowledge'
 import DataState from '@/components/DataState.vue'
 import UploadDialog from '@/components/UploadDialog.vue'
@@ -120,10 +126,17 @@ function catColor(id: string): string {
   return CAT_COLORS[Math.abs(hash) % CAT_COLORS.length]
 }
 
-function catStyle(name: string) {
-  let hash = 0
-  for (const c of name) hash = ((hash << 5) - hash) + c.charCodeAt(0)
-  return { background: CAT_COLORS[Math.abs(hash) % CAT_COLORS.length] + '20', color: CAT_COLORS[Math.abs(hash) % CAT_COLORS.length], borderColor: CAT_COLORS[Math.abs(hash) % CAT_COLORS.length] + '40' }
+async function handleCatChange(row: any, val: string) {
+  if (!val) {
+    await updateDocCategory(row.id, null)
+    row.category_id = null
+    row.category_name = null
+  } else {
+    const [name, id] = val.split('__')
+    await updateDocCategory(row.id, id)
+    row.category_id = id
+    row.category_name = name
+  }
 }
 
 function selectCategory(catId: string) {
