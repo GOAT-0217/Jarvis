@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 import os
 
-import api as api_module
+from routers import auth, chat, knowledge
 from schemas import ErrorResponse
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -64,7 +64,9 @@ def create_app() -> FastAPI:
             content=ErrorResponse(code=50000, message=f"服务器内部错误: {str(exc)}").model_dump(),
         )
 
-    app.include_router(api_module.router)
+    app.include_router(auth.router)
+    app.include_router(chat.router)
+    app.include_router(knowledge.router)
 
     # serve frontend static files at root
     if FRONTEND_DIR.exists():
