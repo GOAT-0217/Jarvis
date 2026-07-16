@@ -73,22 +73,11 @@
 
 ### 前置条件
 
-- **Python** >= 3.12
-- **Node.js** >= 18
-- **Docker Desktop**（运行 PostgreSQL、Redis、Milvus）
-- **包管理**：[uv](https://docs.astral.sh/uv/)（推荐）或 pip
+- **Docker Desktop**（运行全部服务）
+- **uv**（可选，仅本地调试后端时需安装）
+- **Node.js >= 18**（可选，仅本地调试前端时需安装）
 
-### 1. 安装依赖
-
-```bash
-# Python 后端
-uv sync
-
-# 前端
-cd frontend && npm install && cd ..
-```
-
-### 2. 配置环境变量
+### 1. 配置环境变量
 
 ```bash
 cp .env.example .env
@@ -102,28 +91,13 @@ MODEL=your_endpoint_id
 BASE_URL=https://your-llm-endpoint/v1
 ```
 
-### 3. 启动数据层（Docker Compose）
+### 2. 一键启动
 
 ```bash
-docker compose up -d postgres redis etcd minio standalone
-docker compose ps  # 确认 postgres / redis / etcd / minio / standalone 均为 Up
+docker compose --profile dev up -d
 ```
 
-### 4. 启动后端（开发模式）
-
-```bash
-cd backend
-uv run uvicorn app:app --host 0.0.0.0 --port 8000 --reload
-```
-
-### 5. 启动前端（开发模式，另一终端）
-
-```bash
-cd frontend
-npm run dev
-```
-
-### 6. 访问
+### 3. 访问
 
 | URL | 说明 |
 |-----|------|
@@ -142,10 +116,11 @@ npm run dev
 cd frontend && npm run build && cd ..
 
 # 2. 启动全部服务
-docker compose up -d --build
+docker compose --profile prod up -d --build
+docker compose ps  # 确认全部服务均为 Up
+```
 
-# 3. 验证所有服务运行状态
-docker compose ps
+访问 `http://localhost`（Nginx :80 统一入口）。
 ```
 
 ### 访问
