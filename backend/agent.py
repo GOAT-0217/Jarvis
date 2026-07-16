@@ -265,6 +265,24 @@ class ConversationStorage:
         finally:
             db.close()
 
+    def create_session(self, user_id: str, session_id: str, title: str) -> None:
+        """创建一个新的会话记录（仅 metadata，无消息）。"""
+        db = SessionLocal()
+        try:
+            user = db.query(User).filter(User.username == user_id).first()
+            if not user:
+                return
+            session = ChatSession(
+                user_id=user.id,
+                session_id=session_id,
+                metadata_json={"title": title},
+            )
+            db.add(session)
+            db.commit()
+            cache.delete(self._sessions_cache_key(user_id))
+        finally:
+            db.close()
+
 
 
 def create_agent_instance():
