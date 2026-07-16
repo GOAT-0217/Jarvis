@@ -9,7 +9,7 @@
       :class="['session-item', { active: s.session_id === activeSessionId }]"
       @click="$emit('select', s.session_id)"
     >
-      <span class="session-name">{{ s.session_id }}</span>
+      <span class="session-name">{{ s.title || s.session_id }}</span>
       <el-button
         link
         type="danger"

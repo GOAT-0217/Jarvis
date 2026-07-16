@@ -2,11 +2,19 @@ import { ref } from 'vue'
 import { getSessions, getSessionMessages, deleteSession, streamChat } from '@/api/chat'
 import type { SessionInfo, MessageInfo } from '@/api/chat'
 
+export interface RagStep {
+  icon: string
+  label: string
+  detail: string
+}
+
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
   ragTrace?: any
+  ragSteps?: RagStep[]
+  isThinking?: boolean
 }
 
 export function useChat() {
@@ -35,6 +43,8 @@ export function useChat() {
         role: m.type === 'human' ? 'user' : 'assistant',
         content: m.content || '',
         ragTrace: m.rag_trace,
+        ragSteps: [],
+        isThinking: false,
       }))
     } catch (e: any) {
       console.error('加载消息失败:', e)
@@ -63,6 +73,8 @@ export function useChat() {
       id: `${Date.now()}-assistant`,
       role: 'assistant',
       content: '',
+      ragSteps: [],
+      isThinking: true,
     }
     messages.value.push(assistantMsg)
 
@@ -104,18 +116,22 @@ export function useChat() {
 
           try {
             const data = JSON.parse(payload)
-            console.log('SSE event:', data.type, typeof data.content === 'string' ? data.content.slice(0, 20) : data.content)
             const cur = messages.value[lastIdx]
             if (data.type === 'error') {
               cur.content = `[错误] ${data.content}`
             } else if (data.type === 'content' || data.type === 'text') {
+              cur.isThinking = false
               cur.content += data.content || data.text || ''
+            } else if (data.type === 'rag_step') {
+              if (!cur.ragSteps) cur.ragSteps = []
+              cur.ragSteps.push(data.step)
+            } else if (data.type === 'trace') {
+              cur.ragTrace = data.rag_trace
             } else if (typeof data.content === 'string') {
               cur.content += data.content
             } else if (typeof data === 'string') {
               cur.content += data
             }
-            // 强制触发响应式更新
             messages.value[lastIdx] = { ...cur }
           } catch {
             const cur = messages.value[lastIdx]

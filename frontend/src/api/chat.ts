@@ -4,6 +4,7 @@ export interface SessionInfo {
   session_id: string
   updated_at: string
   message_count: number
+  title?: string
 }
 
 export interface MessageInfo {

@@ -161,11 +161,13 @@ class ConversationStorage:
             result = []
             for s in sessions:
                 count = db.query(ChatMessage).filter(ChatMessage.session_ref_id == s.id).count()
+                meta = s.metadata_json or {}
                 result.append(
                     {
                         "session_id": s.session_id,
                         "updated_at": s.updated_at.isoformat(),
                         "message_count": count,
+                        "title": meta.get("title"),
                     }
                 )
             cache.set_json(self._sessions_cache_key(user_id), result)
@@ -423,7 +425,9 @@ def chat_with_agent(user_text: str, user_id: str = "default_user", session_id: s
     rag_trace = rag_context.get("rag_trace") if rag_context else None
 
     extra_message_data = [None] * (len(messages) - 1) + [{"rag_trace": rag_trace}]
-    storage.save(user_id, session_id, messages, extra_message_data=extra_message_data)
+    first_user = next((m.content for m in messages if getattr(m, 'type', '') == 'human'), user_text)
+    title = first_user[:30] + ("…" if len(first_user) > 30 else "")
+    storage.save(user_id, session_id, messages, extra_message_data=extra_message_data, metadata={"title": title})
 
     return {
         "response": response_content,
@@ -536,4 +540,9 @@ async def chat_with_agent_stream(user_text: str, user_id: str = "default_user", 
     # 保存对话
     messages.append(AIMessage(content=full_response))
     extra_message_data = [None] * (len(messages) - 1) + [{"rag_trace": rag_trace}]
-    storage.save(user_id, session_id, messages, extra_message_data=extra_message_data)
+    # 自动生成会话标题：取第一条用户消息，截取前 30 字
+    first_user = next((m.content for m in messages if getattr(m, 'type', '') == 'human'), None)
+    if not first_user:
+        first_user = user_text
+    title = first_user[:30] + ("…" if len(first_user) > 30 else "")
+    storage.save(user_id, session_id, messages, extra_message_data=extra_message_data, metadata={"title": title})
