@@ -25,7 +25,7 @@ const renderedContent = computed(() => {
 
 <style scoped>
 .message {
-  max-width: 78%;
+  max-width: 60%;
   display: flex;
   flex-direction: column;
   animation: msgSlide 0.25s ease-out;
@@ -43,10 +43,10 @@ const renderedContent = computed(() => {
 }
 
 .bubble {
-  padding: 14px 18px;
-  border-radius: 18px;
+  padding: 10px 16px;
+  border-radius: 16px;
   font-size: 15px;
-  line-height: 1.6;
+  line-height: 1.5;
   word-wrap: break-word;
 }
 

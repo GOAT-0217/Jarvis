@@ -112,7 +112,7 @@ async function handleSend(text: string) {
   padding: 28px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 12px;
   scroll-behavior: smooth;
 }
 
