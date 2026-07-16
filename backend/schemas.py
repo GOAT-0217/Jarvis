@@ -9,6 +9,8 @@ class RegisterRequest(BaseModel):
     """注册请求。"""
     username: str
     password: str
+    nickname: Optional[str] = None
+    email: Optional[str] = None
     role: Optional[str] = "user"
     admin_code: Optional[str] = None
 
@@ -31,6 +33,8 @@ class CurrentUserResponse(BaseModel):
     """标准化当前用户信息的响应结构"""
     username: str
     role: str
+    nickname: Optional[str] = None
+    email: Optional[str] = None
 
 
 class AttachmentItem(BaseModel):
@@ -239,3 +243,9 @@ class DocumentListQuery(PydanticBaseModel):
     search: str | None = None
     category_id: str | None = None
     status: str | None = None
+
+
+class ChangePasswordRequest(BaseModel):
+    """修改密码请求。"""
+    old_password: str
+    new_password: str

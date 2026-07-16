@@ -9,9 +9,10 @@ from core.security import (
     get_db,
     get_password_hash,
     resolve_role,
+    verify_password,
 )
 from models import User
-from schemas import APIResponse, AuthResponse, CurrentUserResponse, LoginRequest, RegisterRequest
+from schemas import APIResponse, AuthResponse, ChangePasswordRequest, CurrentUserResponse, LoginRequest, RegisterRequest
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -28,7 +29,13 @@ async def register(request: RegisterRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=409, detail="用户名已存在")
 
     role = resolve_role(request.role, request.admin_code)
-    user = User(username=username, password_hash=get_password_hash(password), role=role)
+    user = User(
+        username=username,
+        password_hash=get_password_hash(password),
+        role=role,
+        nickname=(request.nickname or "").strip() or None,
+        email=(request.email or "").strip() or None,
+    )
     db.add(user)
     db.commit()
 
@@ -47,4 +54,27 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
 
 @router.get("/me", response_model=APIResponse[CurrentUserResponse])
 async def me(current_user: User = Depends(get_current_user)):
-    return APIResponse(data=CurrentUserResponse(username=current_user.username, role=current_user.role))
+    return APIResponse(data=CurrentUserResponse(
+        username=current_user.username,
+        role=current_user.role,
+        nickname=current_user.nickname,
+        email=current_user.email,
+    ))
+
+
+@router.put("/password", response_model=APIResponse[dict])
+async def change_password(
+    request: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not request.new_password or not request.new_password.strip():
+        raise HTTPException(status_code=400, detail="新密码不能为空")
+
+    if not verify_password(request.old_password, current_user.password_hash):
+        raise HTTPException(status_code=403, detail="旧密码错误")
+
+    current_user.password_hash = get_password_hash(request.new_password.strip())
+    db.commit()
+
+    return APIResponse(data={"message": "密码已修改"})
