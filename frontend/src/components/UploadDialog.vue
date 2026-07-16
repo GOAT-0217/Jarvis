@@ -1,17 +1,29 @@
 <template>
-  <el-dialog :model-value="visible" title="上传文档" width="480px" @update:model-value="$emit('update:visible', $event)">
+  <el-dialog :model-value="visible" title="上传文档" width="480px" @update:model-value="$emit('update:visible', $event)" @open="loadCategories">
     <div class="upload-section">
       <!-- 分类选择 -->
-      <el-form-item label="文档分类" style="margin-bottom: 16px">
-        <el-select v-model="categoryId" placeholder="选择分类（可选）" clearable style="width: 100%">
-          <el-option
-            v-for="cat in categories"
-            :key="cat.id"
-            :label="cat.name"
-            :value="cat.id"
-          />
+      <div class="category-row">
+        <el-select v-model="categoryId" placeholder="选择分类（可选）" clearable style="flex: 1">
+          <el-option v-for="cat in categories" :key="cat.id" :label="cat.name" :value="cat.id" />
         </el-select>
-      </el-form-item>
+        <!-- 内联新建 -->
+        <template v-if="!showNewCat">
+          <el-button @click="showNewCat = true" size="default" style="flex-shrink: 0">+ 新建分类</el-button>
+        </template>
+        <template v-else>
+          <el-input
+            v-model="newCatName"
+            ref="newCatInput"
+            placeholder="分类名"
+            size="default"
+            style="width: 120px; flex-shrink: 0"
+            maxlength="20"
+            @keydown.enter="createCategory"
+          />
+          <el-button type="primary" size="default" @click="createCategory" :disabled="!newCatName.trim()" style="flex-shrink: 0">确认</el-button>
+          <el-button size="default" @click="showNewCat = false; newCatName = ''" style="flex-shrink: 0">取消</el-button>
+        </template>
+      </div>
 
       <!-- 上传区域 -->
       <el-upload
@@ -37,9 +49,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, nextTick } from 'vue'
 import { UploadFilled } from '@element-plus/icons-vue'
-import { listCategories } from '@/api/knowledge'
+import { listCategories, createCategory } from '@/api/knowledge'
 import type { CatItem } from '@/api/knowledge'
 
 const props = defineProps<{ visible: boolean }>()
@@ -50,15 +62,30 @@ const categoryId = ref('')
 const categories = ref<CatItem[]>([])
 const uploading = ref(false)
 
-onMounted(() => {
-  if (props.visible) loadCategories()
-})
+// 内联新建分类
+const showNewCat = ref(false)
+const newCatName = ref('')
+const newCatInput = ref()
 
 async function loadCategories() {
   try {
     const res = await listCategories()
     categories.value = res.data || []
   } catch { /* ignore */ }
+}
+
+async function createCategory() {
+  const name = newCatName.value.trim()
+  if (!name) return
+  try {
+    const res = await createCategory({ name })
+    categories.value.push(res.data)
+    categoryId.value = res.data.id
+    newCatName.value = ''
+    showNewCat.value = false
+  } catch (e: any) {
+    alert(e.message || '创建分类失败')
+  }
 }
 
 async function customUpload(options: any) {
@@ -85,3 +112,17 @@ async function customUpload(options: any) {
   }
 }
 </script>
+
+<style scoped>
+.upload-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.category-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+</style>
