@@ -66,55 +66,42 @@ const { isAdmin, isSuperAdmin } = useAuth()
   height: 100%;
   border-right: 0 !important;
   background: transparent !important;
-  padding: 4px 8px;
+  padding: 8px;
 }
 
 .sidebar-menu :deep(.el-menu-item) {
   margin: 2px 0;
-  border-radius: 10px;
-  color: var(--text-secondary) !important;
+  border-radius: 6px;
+  color: #e6edf3 !important;
   background: transparent !important;
-  transition: all 0.2s;
-  height: 44px;
-  line-height: 44px;
+  transition: background 0.15s;
+  height: 40px;
+  line-height: 40px;
   font-size: 15px;
-  position: relative;
+  font-weight: 400;
 }
 
 .sidebar-menu :deep(.el-menu-item .el-icon) {
-  font-size: 20px;
+  font-size: 18px;
 }
 
 .sidebar-menu :deep(.el-menu-item:hover) {
-  background: var(--bg-hover) !important;
-  color: var(--text-body) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
 }
 
 .sidebar-menu :deep(.el-menu-item.is-active) {
-  background: linear-gradient(135deg, rgba(79, 140, 247, 0.1) 0%, rgba(124, 92, 252, 0.06) 100%) !important;
-  color: var(--accent) !important;
+  background: rgba(255, 255, 255, 0.12) !important;
   font-weight: 600;
-}
-
-.sidebar-menu :deep(.el-menu-item.is-active::before) {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 3px;
-  height: 20px;
-  border-radius: 0 3px 3px 0;
-  background: var(--accent-gradient);
+  color: #fff !important;
 }
 
 .sidebar-menu :deep(.el-menu-item.is-active .el-icon) {
-  color: var(--accent) !important;
+  color: #fff !important;
 }
 
 .menu-divider {
   height: 1px;
-  margin: 4px 12px;
-  background: linear-gradient(90deg, transparent, var(--border-light), transparent);
+  margin: 4px 8px;
+  background: #373e47;
 }
 </style>
