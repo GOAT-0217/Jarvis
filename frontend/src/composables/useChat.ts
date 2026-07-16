@@ -79,9 +79,11 @@ export function useChat() {
 
       if (!response.body) {
         assistantMsg.content = '[错误] 响应流不可用'
+        console.error('response.body is null')
         return
       }
 
+      console.log('开始读取 SSE 流...')
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
@@ -101,6 +103,7 @@ export function useChat() {
 
           try {
             const data = JSON.parse(payload)
+            console.log('SSE event:', data.type, typeof data.content === 'string' ? data.content.slice(0, 20) : data.content)
             if (data.type === 'error') {
               assistantMsg.content = `[错误] ${data.content}`
             } else if (data.type === 'content' || data.type === 'text') {
