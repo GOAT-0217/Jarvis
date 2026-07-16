@@ -3365,46 +3365,225 @@ git commit -m "feat: add document recycle bin with restore functionality"
 
 ---
 
-### Task 8.2: 生产部署配置 + README 更新
+### Task 8.2: 企业级生产部署（Nginx 反向代理 + 前后端分离）
 
 **Files:**
-- Modify: `backend/app.py`（生产模式 StaticFiles 挂载 `frontend/dist/`）
+- Create: `nginx/nginx.conf`
+- Create: `nginx/Dockerfile`
+- Modify: `docker-compose.yml`（新增 nginx 服务）
+- Modify: `backend/app.py`（生产模式移除 StaticFiles 挂载，保留开发模式）
+- Modify: `frontend/vite.config.ts`（生产构建输出配置）
+- Modify: `frontend/.env.production`（配置生产环境 API 地址）
 - Modify: `README.md`
 
-- [ ] **Step 1: app.py 生产模式配置**
+- [ ] **Step 1: 后端移除生产模式 StaticFiles 挂载**
+
+FastAPI 不再托管前端文件。前端由 Nginx 直接 serve。
 
 ```python
-# backend/app.py — 修改 StaticFiles 挂载
+# backend/app.py — 修改 create_app() 中的静态文件挂载部分
 
-FRONTEND_DIST = BASE_DIR / "frontend" / "dist"
+# 替换原来的 if FRONTEND_DIR.exists(): app.mount(...)
+# 开发模式下前端由 Vite dev server 独立运行，不需要挂载
+# 生产模式下前端由 Nginx serve，也不需要挂载
 
-if FRONTEND_DIST.exists():
-    app.mount("/", StaticFiles(directory=str(FRONTEND_DIST), html=True), name="static")
-elif FRONTEND_DIR.exists():
-    app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="static")
+# 删除以下内容：
+# if FRONTEND_DIR.exists():
+#     app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="static")
 ```
 
-- [ ] **Step 2: 构建脚本**
+同时将 CORS 从 `allow_origins=["*"]` 改为从环境变量读取：
 
-```json
-// frontend/package.json — 追加 scripts
-"build:prod": "vite build && cp -r dist ../backend/frontend_static/"
+```python
+# backend/app.py — CORS 配置
+
+ALLOWED_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 ```
 
-- [ ] **Step 3: 更新 README.md**
+- [ ] **Step 2: Vite 生产构建配置**
 
-添加以下章节：
-- 全栈项目结构说明
-- 开发模式启动步骤（前端 `npm run dev` + 后端 `uvicorn`）
-- 生产模式部署（`npm run build` + 后端托管静态文件）
-- Alembic 迁移命令
-- 三种角色说明
+```typescript
+// frontend/vite.config.ts — 追加 build 配置
 
-- [ ] **Step 4: 提交**
+export default defineConfig({
+  // ... 现有配置
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'element-plus': ['element-plus'],
+          'echarts': ['echarts'],
+          'vue-vendor': ['vue', 'vue-router'],
+        },
+      },
+    },
+  },
+})
+```
+
+- [ ] **Step 3: 前端生产环境变量**
+
+```env
+# frontend/.env.production
+VITE_API_BASE_URL=/api/v1
+```
+
+- [ ] **Step 4: Nginx 配置**
+
+```nginx
+# nginx/nginx.conf
+
+upstream backend {
+    server backend:8000;
+}
+
+server {
+    listen 80;
+    server_name _;
+    client_max_body_size 50M;
+
+    # 前端静态文件
+    location / {
+        root /usr/share/nginx/html;
+        index index.html;
+        try_files $uri $uri/ /index.html;        # SPA 路由回退
+    }
+
+    # API 反向代理到 FastAPI
+    location /api/ {
+        proxy_pass http://backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # SSE 支持（AI 流式对话需要）
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 300s;
+    }
+
+    # Swagger 文档
+    location /docs {
+        proxy_pass http://backend;
+        proxy_set_header Host $host;
+    }
+
+    location /openapi.json {
+        proxy_pass http://backend;
+        proxy_set_header Host $host;
+    }
+
+    # 静态资源缓存
+    location /assets/ {
+        root /usr/share/nginx/html;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+}
+```
+
+- [ ] **Step 5: Nginx Dockerfile**
+
+```dockerfile
+# nginx/Dockerfile
+
+FROM nginx:1.27-alpine
+COPY nginx/nginx.conf /etc/nginx/conf.d/default.conf
+COPY frontend/dist /usr/share/nginx/html
+```
+
+- [ ] **Step 6: 更新 docker-compose.yml**
+
+```yaml
+# docker-compose.yml — 新增 nginx 服务，删掉原来的端口直接暴露
+
+services:
+  postgres:
+    # ... 不变，不暴露端口到宿主机
+
+  redis:
+    # ... 不变
+
+  milvus:
+    # ... 不变
+
+  backend:
+    build: ./backend
+    expose:
+      - "8000"                          # 仅内网可达，不暴露到宿主机
+    env_file: .env
+    depends_on:
+      - postgres
+      - redis
+      - milvus
+
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    ports:
+      - "80:80"                         # 唯一入口
+    depends_on:
+      - backend
+```
+
+- [ ] **Step 7: 后端 Dockerfile**
+
+```dockerfile
+# backend/Dockerfile
+
+FROM python:3.12-slim
+
+WORKDIR /app
+
+COPY pyproject.toml uv.lock ./
+RUN pip install uv && uv sync --frozen --no-dev
+
+COPY backend/ ./backend/
+COPY data/ ./data/
+
+WORKDIR /app/backend
+EXPOSE 8000
+CMD ["uv", "run", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+- [ ] **Step 8: 启动脚本**
 
 ```bash
-git add backend/app.py frontend/package.json README.md
-git commit -m "docs: add production deployment config and update README for fullstack architecture"
+# 一键生产部署
+cd frontend && npm run build && cd ..
+docker compose up -d --build
+docker compose ps  # 确认所有服务 running
+```
+
+- [ ] **Step 9: 更新 README.md**
+
+完全重写 README：
+- 企业级架构图（Nginx → Vue SPA + FastAPI → DB/Milvus）
+- 开发模式启动（前端 `npm run dev`，后端 `uvicorn --reload`，Docker Compose 仅启数据层）
+- 生产部署命令（`npm run build` + `docker compose up -d`）
+- Alembic 迁移命令
+- 三种角色说明与预设账号生成方式
+- API 文档地址（`http://<host>/docs`）
+- 环境变量表（完整列出所有 .env 配置项）
+
+- [ ] **Step 10: 提交**
+
+```bash
+git add nginx/ docker-compose.yml backend/app.py backend/Dockerfile frontend/vite.config.ts frontend/.env.production README.md
+git commit -m "feat: add enterprise deployment config with Nginx reverse proxy and frontend-backend separation"
 ```
 
 ---
