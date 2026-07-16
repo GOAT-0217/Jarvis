@@ -89,29 +89,32 @@ async function handleSend(text: string) {
   margin: -24px;
 }
 
+/* 会话列表 — 最深，和主侧边栏同色 */
 .chat-sidebar {
   width: 260px;
-  border-right: 1px solid #e0e2e6;
-  background: #e8e9ed;
+  border-right: 1px solid #2c333b;
+  background: #24292f;
 }
 
+/* 消息区 — 中间灰 */
 .chat-main {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: var(--bg-content);
+  background: #dadce0;
 }
 
 .chat-messages {
   flex: 1;
   overflow-y: auto;
   padding: 24px 32px;
-  background: var(--bg-content);
+  background: #e8eaee;
 }
 
+/* 输入区 — 最浅 */
 .chat-input-area {
   padding: 16px 24px;
-  border-top: 1px solid var(--border-card);
-  background: #f3f4f6;
+  border-top: 1px solid #d0d3d9;
+  background: #f0f1f4;
 }
 </style>
