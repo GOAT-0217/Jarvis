@@ -74,6 +74,82 @@ class AnalyticsService:
                     "last_active": str(r.last_active),
                 })
 
+            # 分类统计
+            from models import Category, DocumentTag, Tag
+            cat_rows = (
+                db.query(Category.name, func.count(Document.id).label("cnt"))
+                .outerjoin(Document, (Document.category_id == Category.id) & (Document.deleted_at.is_(None)))
+                .filter(Category.deleted_at.is_(None))
+                .group_by(Category.name)
+                .order_by(func.count(Document.id).desc())
+                .limit(10)
+                .all()
+            )
+            category_distribution = [{"name": r.name, "count": r.cnt} for r in cat_rows if r.cnt > 0]
+
+            # 标签统计
+            tag_rows = (
+                db.query(Tag.name, func.count(DocumentTag.document_id).label("cnt"))
+                .join(DocumentTag, DocumentTag.tag_id == Tag.id)
+                .join(Document, (Document.id == DocumentTag.document_id) & (Document.deleted_at.is_(None)))
+                .filter(Tag.deleted_at.is_(None))
+                .group_by(Tag.name)
+                .order_by(func.count(DocumentTag.document_id).desc())
+                .limit(10)
+                .all()
+            )
+            tag_distribution = [{"name": r.name, "count": r.cnt} for r in tag_rows]
+
+            # 近 30 天每日分类上传趋势
+            from sqlalchemy import text as sa_text
+            thirty_days = datetime.utcnow() - timedelta(days=30)
+            cat_trend_rows = (
+                db.query(
+                    func.date(Document.created_at).label("dt"),
+                    Category.name.label("cat"),
+                    func.count().label("cnt"),
+                )
+                .join(Category, Category.id == Document.category_id)
+                .filter(Document.created_at >= thirty_days, Document.deleted_at.is_(None), Category.deleted_at.is_(None))
+                .group_by(func.date(Document.created_at), Category.name)
+                .order_by("dt")
+                .all()
+            )
+            dates = sorted(set(str(r.dt) for r in cat_trend_rows))
+            cats = sorted(set(r.cat for r in cat_trend_rows))
+            cat_index = {c: i for i, c in enumerate(cats)}
+            def cat_empty_series(name: str) -> dict:
+                return {"name": name, "type": "line", "stack": "cat", "data": [0] * len(dates)}
+            cat_series = {c: cat_empty_series(c) for c in cats}
+            for r in cat_trend_rows:
+                di = dates.index(str(r.dt))
+                cat_series[r.cat]["data"][di] = r.cnt
+            category_trend = {"dates": dates, "series": list(cat_series.values())}
+
+            # 近 30 天每日标签使用趋势
+            tag_trend_rows = (
+                db.query(
+                    func.date(Document.created_at).label("dt"),
+                    Tag.name.label("tag"),
+                    func.count().label("cnt"),
+                )
+                .join(DocumentTag, DocumentTag.document_id == Document.id)
+                .join(Tag, Tag.id == DocumentTag.tag_id)
+                .filter(Document.created_at >= thirty_days, Document.deleted_at.is_(None), Tag.deleted_at.is_(None))
+                .group_by(func.date(Document.created_at), Tag.name)
+                .order_by("dt")
+                .all()
+            )
+            tag_dates = sorted(set(str(r.dt) for r in tag_trend_rows))
+            tag_names = sorted(set(r.tag for r in tag_trend_rows))
+            def tag_empty_series(name: str) -> dict:
+                return {"name": name, "type": "line", "stack": "tag", "data": [0] * len(tag_dates)}
+            tag_series_map = {t: tag_empty_series(t) for t in tag_names}
+            for r in tag_trend_rows:
+                di = tag_dates.index(str(r.dt))
+                tag_series_map[r.tag]["data"][di] = r.cnt
+            tag_trend = {"dates": tag_dates, "series": list(tag_series_map.values())}
+
             result = {
                 "document_count": doc_count,
                 "today_upload_count": today_upload,
@@ -81,6 +157,10 @@ class AnalyticsService:
                 "query_trend": query_trend,
                 "top_queries": top_queries,
                 "active_users": active_users_data,
+                "category_distribution": category_distribution,
+                "tag_distribution": tag_distribution,
+                "category_trend": category_trend,
+                "tag_trend": tag_trend,
             }
             cache.set_json("dashboard_stats", result, AnalyticsService.CACHE_TTL)
             return result

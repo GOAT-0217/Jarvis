@@ -29,6 +29,32 @@
           </el-card>
         </el-col>
       </el-row>
+
+      <!-- 每日上传类别趋势 -->
+      <el-row :gutter="16" style="margin-top: 16px">
+        <el-col :span="24">
+          <el-card header="📂 每日上传类别趋势（近 30 天）">
+            <LineChart v-if="stats.category_trend?.dates?.length" :dates="stats.category_trend.dates" :series="stats.category_trend.series" />
+            <div v-else style="text-align: center; color: #6d6f78; padding: 24px">暂无数据</div>
+          </el-card>
+        </el-col>
+      </el-row>
+
+      <!-- 标签趋势 + 类别饼图 -->
+      <el-row :gutter="16" style="margin-top: 16px">
+        <el-col :span="14">
+          <el-card header="🏷️ 标签使用趋势（近 30 天）">
+            <LineChart v-if="stats.tag_trend?.dates?.length" :dates="stats.tag_trend.dates" :series="stats.tag_trend.series" />
+            <div v-else style="text-align: center; color: #6d6f78; padding: 24px">暂无数据</div>
+          </el-card>
+        </el-col>
+        <el-col :span="10">
+          <el-card header="🥧 文件类别分布">
+            <PieChart v-if="stats.category_distribution?.length" :data="stats.category_distribution" />
+            <div v-else style="text-align: center; color: #6d6f78; padding: 24px">暂无数据</div>
+          </el-card>
+        </el-col>
+      </el-row>
     </DataState>
   </div>
 </template>
@@ -39,6 +65,8 @@ import { getDashboardStats } from '@/api/admin'
 import DataState from '@/components/DataState.vue'
 import StatCard from '@/components/StatCard.vue'
 import TrendChart from '@/components/TrendChart.vue'
+import LineChart from '@/components/LineChart.vue'
+import PieChart from '@/components/PieChart.vue'
 
 const stats = ref<any>({})
 const loading = ref(true)
