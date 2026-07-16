@@ -151,3 +151,33 @@ class DocumentDeleteResponse(BaseModel):
     filename: str
     chunks_deleted: int
     message: str
+
+
+# ── Unified API response models ──────────────────────────────────────────────
+
+from typing import Generic, TypeVar
+from pydantic import BaseModel as PydanticBaseModel
+
+T = TypeVar("T")
+
+
+class APIResponse(PydanticBaseModel, Generic[T]):
+    """统一成功响应。"""
+    code: int = 0
+    message: str = "success"
+    data: T | None = None
+
+
+class PaginatedData(PydanticBaseModel, Generic[T]):
+    """分页数据结构。"""
+    items: list[T]
+    total: int
+    page: int
+    page_size: int
+
+
+class ErrorResponse(PydanticBaseModel):
+    """统一错误响应。"""
+    code: int
+    message: str
+    data: None = None
