@@ -11,6 +11,7 @@ from langchain_community.document_loaders import Docx2txtLoader, PyPDFLoader, Un
 from pydantic import BaseModel as PydanticBaseModel
 
 from agent import chat_with_agent, chat_with_agent_stream, storage
+from services.agent_service import _log_usage
 from core.security import get_current_user
 from models import User
 from schemas import (
@@ -227,6 +228,7 @@ async def chat_stream_endpoint(request: ChatRequest, current_user: User = Depend
             _validate_attachments(request.attachments)
             async for chunk in chat_with_agent_stream(request.message, current_user.username, session_id, attachments=request.attachments):
                 yield chunk
+            _log_usage(current_user.id, session_id, request.message, bool(request.attachments), 0)
         except Exception as e:
             error_data = {"type": "error", "content": str(e)}
             yield f"data: {json.dumps(error_data)}\n\n"
