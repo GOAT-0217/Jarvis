@@ -50,7 +50,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { UploadFilled } from '@element-plus/icons-vue'
-import { listCategories, createCategory as apiCreateCat, listTags, handleCreateTag as apiCreateTag } from '@/api/knowledge'
+import { listCategories, createCategory as apiCreateCat, listTags, createTag as apiCreateTag } from '@/api/knowledge'
 import type { CatItem, TagItem } from '@/api/knowledge'
 
 const props = defineProps<{ visible: boolean }>()

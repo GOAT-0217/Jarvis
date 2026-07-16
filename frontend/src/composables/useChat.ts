@@ -27,7 +27,8 @@ export function useChat() {
     try {
       const res = await getSessions()
       // 后端 sessions 接口返回 {sessions: [...]}，未包装在 data 内
-      sessions.value = (res.data?.sessions || res.sessions || [])
+      const sdata = res as any
+      sessions.value = (sdata.data?.sessions || sdata.sessions || [])
     } catch (e: any) {
       console.error('加载会话列表失败:', e)
     }
@@ -37,7 +38,8 @@ export function useChat() {
     try {
       const res = await getSessionMessages(sessionId)
       // 后端 messages 接口返回 {messages: [...]}，未包装在 data 内
-      const msgs = res.data?.messages || res.messages || []
+      const mdata = res as any
+      const msgs = mdata.data?.messages || mdata.messages || []
       messages.value = msgs.map((m: MessageInfo) => ({
         id: `${m.timestamp}-${Math.random()}`,
         role: m.type === 'human' ? 'user' : 'assistant',
