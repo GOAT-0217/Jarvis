@@ -66,6 +66,7 @@ const emit = defineEmits<{
   select: [sessionId: string]
   delete: [sessionId: string]
   newChat: []
+  'rename-done': [sessionId: string]
 }>()
 
 const showRename = ref(false)
@@ -87,8 +88,11 @@ async function confirmRename() {
   if (!renameTitle.value.trim()) return
   try {
     await renameSession(renameTarget.value, renameTitle.value.trim())
+    // 先更新当前已加载的 sessions
     const s = props.sessions.find(x => x.session_id === renameTarget.value)
     if (s) s.title = renameTitle.value.trim()
+    // 同时通知父组件重新加载（如果提供了回调）
+    emit('rename-done', renameTarget.value)
   } catch (e: any) {
     alert(e.message || '重命名失败')
   }

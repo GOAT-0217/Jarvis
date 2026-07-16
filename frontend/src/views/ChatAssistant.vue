@@ -7,6 +7,7 @@
         @select="switchSession"
         @delete="handleDeleteSession"
         @new-chat="newChat"
+        @rename-done="loadSessions"
       />
     </div>
     <div class="chat-main">
@@ -93,6 +94,7 @@ async function saveTitle() {
     await renameSession(currentSessionId.value, newTitle)
     const s = sessions.value.find(x => x.session_id === currentSessionId.value)
     if (s) s.title = newTitle
+    await loadSessions()
   } catch (e: any) {
     // 静默失败
   }
