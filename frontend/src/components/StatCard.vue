@@ -13,12 +13,12 @@ defineProps<{ title: string; value: number; color: string }>()
 
 <style scoped>
 .stat-card {
-  border-radius: 12px !important;
-  transition: transform 0.2s, box-shadow 0.2s;
+  border-radius: var(--radius-lg) !important;
+  transition: transform 0.2s, box-shadow 0.25s;
 }
 .stat-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4) !important;
+  box-shadow: var(--shadow-lg) !important;
 }
 
 .stat-inner {
@@ -27,7 +27,7 @@ defineProps<{ title: string; value: number; color: string }>()
 }
 
 .stat-value {
-  font-size: 30px;
+  font-size: 32px;
   font-weight: 800;
   letter-spacing: -1px;
   margin-bottom: 4px;
@@ -36,5 +36,6 @@ defineProps<{ title: string; value: number; color: string }>()
 .stat-title {
   font-size: 14px;
   color: var(--text-secondary);
+  font-weight: 500;
 }
 </style>

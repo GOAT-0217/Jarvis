@@ -41,12 +41,11 @@ const isCollapsed = ref(false)
 <style scoped>
 .app-shell {
   height: 100vh;
-  background: var(--bg-deep);
 }
 
 .app-aside {
-  background: linear-gradient(180deg, #1b2335 0%, #1d273a 50%, #1a2234 100%);
-  border-right: 1px solid var(--border-subtle);
+  background: linear-gradient(180deg, var(--bg-sidebar-start) 0%, var(--bg-sidebar-end) 100%);
+  border-right: 1px solid var(--border-light);
   display: flex;
   flex-direction: column;
   transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -69,11 +68,11 @@ const isCollapsed = ref(false)
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #5B9EFF 0%, #7DB8FF 100%);
+  background: var(--accent-gradient);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 16px var(--glow);
+  box-shadow: 0 2px 12px rgba(79, 140, 247, 0.25);
   flex-shrink: 0;
 }
 .brand-icon-sm span {
@@ -85,8 +84,8 @@ const isCollapsed = ref(false)
 .brand-text {
   font-size: 18px;
   font-weight: 700;
-  color: var(--text-primary);
-  letter-spacing: 4px;
+  color: var(--text-heading);
+  letter-spacing: 3px;
   white-space: nowrap;
 }
 
@@ -97,19 +96,30 @@ const isCollapsed = ref(false)
   font-size: 11px;
   color: var(--text-muted);
   letter-spacing: 1px;
-  border-top: 1px solid var(--border-subtle);
+  border-top: 1px solid var(--border-light);
 }
 
 /* 顶栏 */
 .app-header {
   height: 56px;
   padding: 0 20px;
-  background: rgba(30, 36, 55, 0.78);
+  background: rgba(255, 255, 255, 0.78);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-light);
+  position: relative;
   display: flex;
   align-items: center;
+}
+.app-header::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent) 20%, var(--accent-purple) 80%, transparent);
+  opacity: 0.35;
 }
 
 /* 内容区 */

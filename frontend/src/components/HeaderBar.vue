@@ -129,7 +129,8 @@ function handleCommand(cmd: string) {
   color: var(--accent) !important;
 }
 .header-breadcrumb :deep(.el-breadcrumb__item:last-child .el-breadcrumb__inner) {
-  color: var(--text-primary) !important;
+  color: var(--text-heading) !important;
+  font-weight: 600;
 }
 .header-breadcrumb :deep(.el-breadcrumb__separator) {
   color: var(--text-muted) !important;
@@ -145,23 +146,25 @@ function handleCommand(cmd: string) {
   transition: color 0.2s;
 }
 .user-trigger:hover {
-  color: var(--text-primary);
+  color: var(--text-body);
 }
 
 .user-avatar {
   width: 30px;
   height: 30px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #5B9EFF 0%, #7DB8FF 100%);
+  background: var(--accent-gradient);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 13px;
   font-weight: 700;
   color: #fff;
+  box-shadow: 0 2px 8px rgba(79, 140, 247, 0.2);
 }
 
 .user-name {
   font-size: 15px;
+  font-weight: 500;
 }
 </style>

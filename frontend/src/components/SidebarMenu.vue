@@ -71,27 +71,43 @@ const { isAdmin, isSuperAdmin } = useAuth()
 
 .sidebar-menu :deep(.el-menu-item) {
   margin: 2px 0;
-  border-radius: 8px;
+  border-radius: 10px;
   color: var(--text-secondary) !important;
   background: transparent !important;
   transition: all 0.2s;
-  height: 48px;
-  line-height: 48px;
+  height: 44px;
+  line-height: 44px;
   font-size: 15px;
+  position: relative;
 }
 
 .sidebar-menu :deep(.el-menu-item .el-icon) {
   font-size: 20px;
 }
+
 .sidebar-menu :deep(.el-menu-item:hover) {
-  background: rgba(64, 158, 255, 0.08) !important;
-  color: var(--text-primary) !important;
+  background: var(--bg-hover) !important;
+  color: var(--text-body) !important;
 }
+
 .sidebar-menu :deep(.el-menu-item.is-active) {
-  background: linear-gradient(135deg, rgba(91, 158, 255, 0.18) 0%, rgba(125, 184, 255, 0.08) 100%) !important;
-  color: #fff !important;
-  box-shadow: inset 0 0 0 1px var(--border-active);
+  background: linear-gradient(135deg, rgba(79, 140, 247, 0.1) 0%, rgba(124, 92, 252, 0.06) 100%) !important;
+  color: var(--accent) !important;
+  font-weight: 600;
 }
+
+.sidebar-menu :deep(.el-menu-item.is-active::before) {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 20px;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent-gradient);
+}
+
 .sidebar-menu :deep(.el-menu-item.is-active .el-icon) {
   color: var(--accent) !important;
 }
@@ -99,6 +115,6 @@ const { isAdmin, isSuperAdmin } = useAuth()
 .menu-divider {
   height: 1px;
   margin: 4px 12px;
-  background: linear-gradient(90deg, transparent, var(--border-subtle), transparent);
+  background: linear-gradient(90deg, transparent, var(--border-light), transparent);
 }
 </style>
