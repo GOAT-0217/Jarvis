@@ -18,9 +18,17 @@
 
       <!-- 标签选择 -->
       <el-form-item label="文档标签" style="margin-bottom: 0">
-        <el-select v-model="tagIds" multiple placeholder="选择标签（可选，最多 5 个）" style="width: 100%" :multiple-limit="5">
-          <el-option v-for="t in tags" :key="t.id" :label="t.name" :value="t.id" />
-        </el-select>
+        <div class="category-row">
+          <el-select v-model="tagIds" multiple placeholder="选择标签（可选，最多 5 个）" style="flex: 1" :multiple-limit="5" @change="onTagSelect">
+            <el-option v-for="t in tags" :key="t.id" :label="t.name" :value="t.id" />
+            <el-option value="__new__" style="color: #5eead4; font-weight: 600">+ 自定义标签</el-option>
+          </el-select>
+          <template v-if="showNewTag">
+            <el-input v-model="newTagNameVal" placeholder="标签名" size="default" style="width: 120px; flex-shrink: 0" maxlength="10" @keydown.enter="createTag" />
+            <el-button type="primary" size="default" @click="createTag" :disabled="!newTagNameVal.trim()" style="flex-shrink: 0">确认</el-button>
+            <el-button size="default" @click="showNewTag = false; newTagNameVal = ''" style="flex-shrink: 0">取消</el-button>
+          </template>
+        </div>
       </el-form-item>
 
       <!-- 上传区域 -->
@@ -40,7 +48,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { UploadFilled } from '@element-plus/icons-vue'
-import { listCategories, createCategory, listTags } from '@/api/knowledge'
+import { listCategories, createCategory, listTags, createTag } from '@/api/knowledge'
 import type { CatItem, TagItem } from '@/api/knowledge'
 
 const props = defineProps<{ visible: boolean }>()
@@ -54,6 +62,28 @@ const tagIds = ref<string[]>([])
 const uploading = ref(false)
 const showNewCat = ref(false)
 const newCatName = ref('')
+const showNewTag = ref(false)
+const newTagNameVal = ref('')
+
+function onTagSelect(val: string[]) {
+  if (val.includes('__new__')) {
+    showNewTag.value = true
+    tagIds.value = val.filter(v => v !== '__new__')
+  }
+}
+
+async function createTag() {
+  const name = newTagNameVal.value.trim()
+  if (!name) return
+  try {
+    const color = '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')
+    const res = await createTag({ name, color })
+    tags.value.push(res.data)
+    tagIds.value.push(res.data.id)
+    newTagNameVal.value = ''
+    showNewTag.value = false
+  } catch (e: any) { alert(e.message || '创建标签失败') }
+}
 
 async function loadFormData() {
   try {
