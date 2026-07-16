@@ -10,10 +10,11 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from agent import chat_with_agent, chat_with_agent_stream, storage
-from auth import authenticate_user, create_access_token, get_current_user, get_db, get_password_hash, require_admin, resolve_role
+from core.security import get_current_user, require_knowledge_admin
+from routers.auth import router as auth_router
 from document_loader import DocumentLoader
-from embedding import embedding_service
-from milvus_client import MilvusManager
+from core.embedding import embedding_service
+from core.milvus_client import MilvusManager
 from milvus_writer import MilvusWriter
 from models import User
 from parent_chunk_store import ParentChunkStore
@@ -76,6 +77,7 @@ def _validate_attachments(attachments: list | None) -> None:
 
 
 router = APIRouter()
+router.include_router(auth_router)
 
 
 @router.post("/attachments/extract", response_model=AttachmentExtractResponse)
@@ -168,61 +170,6 @@ def _remove_bm25_stats_for_filename(filename: str) -> None:
     )
     texts = [r.get("text") or "" for r in rows]
     embedding_service.increment_remove_documents(texts)
-
-
-@router.post("/auth/register", response_model=AuthResponse)
-async def register(request: RegisterRequest, db: Session = Depends(get_db)):
-    """
-    该函数处理用户注册
-        1.校验用户名密码非空；
-        2.检查用户名是否已存在；
-        3.解析角色并创建新用户，哈希存储密码后存入数据库；
-        4.生成访问令牌，返回包含令牌、用户名及角色的认证响应
-    """
-    username = (request.username or "").strip()
-    password = (request.password or "").strip()
-    # 1.校验用户名密码非空；
-    if not username or not password:
-        raise HTTPException(status_code=400, detail="用户名和密码不能为空")
-
-    # 2.检查用户名是否已存在；
-    exists = db.query(User).filter(User.username == username).first()
-    if exists:
-        raise HTTPException(status_code=409, detail="用户名已存在")
-    # 3.解析角色并创建新用户，哈希存储密码后存入数据库；
-    role = resolve_role(request.role, request.admin_code)
-    user = User(username=username, password_hash=get_password_hash(password), role=role)
-    db.add(user)
-    db.commit()
-    # 4.生成访问令牌，返回包含令牌、用户名及角色的认证响应
-    token = create_access_token(username=username, role=role)
-    return AuthResponse(access_token=token, username=username, role=role)
-
-
-@router.post("/auth/login", response_model=AuthResponse)
-async def login(request: LoginRequest, db: Session = Depends(get_db)):
-    """
-    该接口处理用户登录：
-        首先验证用户名和密码，失败则返回401错误；
-        成功后生成包含用户信息的JWT令牌；
-        最后返回包含令牌、用户名及角色的认证响应对象。
-    """
-    user = authenticate_user(db, request.username, request.password)
-    if not user:
-        raise HTTPException(status_code=401, detail="用户名或密码错误")
-    token = create_access_token(username=user.username, role=user.role)
-    return AuthResponse(access_token=token, username=user.username, role=user.role)
-
-
-@router.get("/auth/me", response_model=CurrentUserResponse)
-async def me(current_user: User = Depends(get_current_user)):
-    """
-    该接口通过依赖注入获取当前登录用户，
-        并返回包含用户名和角色的响应对象。
-    它用于让前端获取当前认证用户的简要身份信息，
-        确保只有已登录用户才能访问此受保护的路由。
-    """
-    return CurrentUserResponse(username=current_user.username, role=current_user.role)
 
 
 @router.get("/sessions/{session_id}", response_model=SessionMessagesResponse)
@@ -332,7 +279,7 @@ async def chat_stream_endpoint(request: ChatRequest, current_user: User = Depend
 
 
 @router.get("/documents", response_model=DocumentListResponse)
-async def list_documents(_: User = Depends(require_admin)):
+async def list_documents(_: User = Depends(require_knowledge_admin)):
     """获取已上传的文档列表（管理员）
         该接口为管理员获取文档列表。
             1.首先初始化Milvus集合并查询文件名及类型；
@@ -367,7 +314,7 @@ async def list_documents(_: User = Depends(require_admin)):
 
 
 @router.post("/documents/upload", response_model=DocumentUploadResponse)
-async def upload_document(file: UploadFile = File(...), _: User = Depends(require_admin)):
+async def upload_document(file: UploadFile = File(...), _: User = Depends(require_knowledge_admin)):
     """上传文档并进行 embedding（管理员）
         实现管理员上传文档功能：
             校验文件类型后，先清理旧数据（含BM25统计、Milvus向量及父分块），
@@ -439,7 +386,7 @@ async def upload_document(file: UploadFile = File(...), _: User = Depends(requir
 
 
 @router.delete("/documents/{filename}", response_model=DocumentDeleteResponse)
-async def delete_document(filename: str, _: User = Depends(require_admin)):
+async def delete_document(filename: str, _: User = Depends(require_knowledge_admin)):
     """删除文档在 Milvus 中的向量（保留本地文件，管理员）"""
     try:
         milvus_manager.init_collection()

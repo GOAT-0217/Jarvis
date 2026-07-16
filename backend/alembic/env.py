@@ -10,7 +10,7 @@ from alembic import context
 # Ensure backend/ is on sys.path so we can import database/models
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from database import Base, DATABASE_URL  # noqa: E402
+from core.database import Base, DATABASE_URL  # noqa: E402
 import models  # noqa: E402, F401 — ensure all models are imported for autogenerate
 
 # this is the Alembic Config object, which provides

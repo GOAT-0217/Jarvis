@@ -4,7 +4,7 @@ from datetime import datetime
 from sqlalchemy import Boolean, ForeignKey, Index, Integer, String, Text, DateTime, JSON, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from database import Base
+from core.database import Base
 
 
 class User(Base):
