@@ -16,7 +16,9 @@
           :key="msg.id"
           :message="msg"
         />
-        <div v-if="isStreaming" style="color: #999">AI 正在思考...</div>
+        <div v-if="isStreaming && !messages[messages.length-1]?.content" class="typing-indicator">
+          <span></span><span></span><span></span>
+        </div>
       </div>
       <div class="chat-input-area">
         <ChatInput
@@ -87,34 +89,58 @@ async function handleSend(text: string) {
   display: flex;
   height: 100%;
   margin: -24px;
+  background: #0f141f;
 }
 
-/* 会话列表 — 最深，和主侧边栏一致 */
+/* 会话列表 */
 .chat-sidebar {
   width: 260px;
-  border-right: 1px solid #2e3035;
-  background: var(--bg-sidebar);
+  border-right: 1px solid rgba(94, 234, 212, 0.06);
+  background: #141a28;
 }
 
-/* 消息区 — 中间调 */
+/* 消息区 */
 .chat-main {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: var(--bg-content);
 }
 
 .chat-messages {
   flex: 1;
   overflow-y: auto;
-  padding: 24px 32px;
-  background: #222327;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  scroll-behavior: smooth;
 }
 
-/* 输入区 — 最浅 */
+/* 输入区 */
 .chat-input-area {
-  padding: 16px 24px;
-  border-top: 1px solid var(--border-light);
-  background: var(--bg-card);
+  padding: 18px 28px 20px;
+  background: transparent;
+}
+
+/* 打字指示器 */
+.typing-indicator {
+  display: flex;
+  gap: 6px;
+  padding: 14px 18px;
+  align-self: flex-start;
+}
+.typing-indicator span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #5eead4;
+  animation: bounce 1.4s infinite ease-in-out both;
+}
+.typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+.typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+.typing-indicator span:nth-child(3) { animation-delay: 0s; }
+@keyframes bounce {
+  0%, 80%, 100% { transform: scale(0); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
 }
 </style>
