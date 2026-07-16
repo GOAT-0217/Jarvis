@@ -40,5 +40,8 @@ export function streamChat(params: ChatStreamParams): Promise<Response> {
       Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(params),
+  }).then(resp => {
+    if (!resp.ok) throw new Error(`请求失败 (${resp.status})`)
+    return resp
   })
 }

@@ -16,23 +16,37 @@ export function useChat() {
   const abortController = ref<AbortController | null>(null)
 
   async function loadSessions() {
-    const res = await getSessions()
-    sessions.value = res.data.sessions
+    try {
+      const res = await getSessions()
+      sessions.value = res.data.sessions || []
+    } catch (e: any) {
+      console.error('加载会话列表失败:', e)
+    }
   }
 
   async function loadMessages(sessionId: string) {
-    const res = await getSessionMessages(sessionId)
-    messages.value = res.data.messages.map((m: MessageInfo) => ({
-      id: `${m.timestamp}-${Math.random()}`,
-      role: m.type === 'human' ? 'user' : 'assistant',
-      content: m.content,
-      ragTrace: m.rag_trace,
-    }))
+    try {
+      const res = await getSessionMessages(sessionId)
+      const msgs = res.data.messages || []
+      messages.value = msgs.map((m: MessageInfo) => ({
+        id: `${m.timestamp}-${Math.random()}`,
+        role: m.type === 'human' ? 'user' : 'assistant',
+        content: m.content || '',
+        ragTrace: m.rag_trace,
+      }))
+    } catch (e: any) {
+      console.error('加载消息失败:', e)
+      messages.value = []
+    }
   }
 
   async function removeSession(sessionId: string) {
-    await deleteSession(sessionId)
-    sessions.value = sessions.value.filter((s) => s.session_id !== sessionId)
+    try {
+      await deleteSession(sessionId)
+      sessions.value = sessions.value.filter((s) => s.session_id !== sessionId)
+    } catch (e: any) {
+      console.error('删除会话失败:', e)
+    }
   }
 
   async function sendMessage(text: string, sessionId: string, attachments?: any[]) {
@@ -61,39 +75,48 @@ export function useChat() {
         attachments,
       })
 
-      const reader = response.body?.getReader()
-      if (!reader) return
+      if (!response.body) {
+        assistantMsg.content = '[错误] 响应流不可用'
+        return
+      }
 
+      const reader = response.body.getReader()
       const decoder = new TextDecoder()
+      let buffer = ''
+
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
 
-        const chunk = decoder.decode(value, { stream: true })
-        const lines = chunk.split('\n')
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6))
-              if (data.type === 'error') {
-                assistantMsg.content = data.content
-              } else if (data.type === 'content' || data.type === 'text') {
-                assistantMsg.content += data.content || data.text || ''
-              } else if (typeof data === 'string') {
-                assistantMsg.content += data
-              } else if (data.content) {
-                assistantMsg.content += data.content
-              }
-            } catch {
-              // raw text
-              assistantMsg.content += line.slice(6)
+          if (!line.startsWith('data: ')) continue
+          const payload = line.slice(6).trim()
+          if (!payload || payload === '[DONE]') continue
+
+          try {
+            const data = JSON.parse(payload)
+            if (data.type === 'error') {
+              assistantMsg.content = `[错误] ${data.content}`
+            } else if (data.type === 'content' || data.type === 'text') {
+              assistantMsg.content += data.content || data.text || ''
+            } else if (typeof data.content === 'string') {
+              assistantMsg.content += data.content
+            } else if (typeof data === 'string') {
+              assistantMsg.content += data
             }
+          } catch {
+            assistantMsg.content += payload
           }
         }
       }
     } catch (e: any) {
       if (e.name !== 'AbortError') {
-        assistantMsg.content = `[错误] ${e.message}`
+        assistantMsg.content = `[错误] ${e.message || '请求失败'}`
+        console.error('AI 请求失败:', e)
       }
     } finally {
       isStreaming.value = false
