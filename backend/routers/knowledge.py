@@ -201,3 +201,39 @@ async def delete_tag(
     if not tag:
         raise HTTPException(status_code=404, detail="标签不存在")
     return APIResponse(data={"message": f"标签 {tag.name} 已删除"})
+
+
+@router.get("/documents/trash", response_model=APIResponse[PaginatedData[DocumentSchema]])
+async def list_trash(
+    page: int = 1,
+    page_size: int = 20,
+    current_user: User = Depends(require_knowledge_admin),
+    db: Session = Depends(get_db),
+):
+    q = db.query(Document).filter(Document.deleted_at.isnot(None))
+    total = q.count()
+    items = q.order_by(Document.deleted_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+    docs = [
+        DocumentSchema(
+            id=d.id, filename=d.filename, file_type=d.file_type, file_size=d.file_size,
+            status=d.status, category_id=d.category_id, char_count=d.char_count,
+            chunk_count=d.chunk_count, uploaded_by=str(d.uploaded_by),
+            created_at=d.created_at.isoformat(), tags=[],
+        )
+        for d in items
+    ]
+    return APIResponse(data=PaginatedData(
+        items=docs, total=total, page=page, page_size=page_size,
+    ))
+
+
+@router.post("/documents/{doc_id}/restore", response_model=APIResponse[dict])
+async def restore_document(
+    doc_id: str,
+    current_user: User = Depends(require_knowledge_admin),
+    db: Session = Depends(get_db),
+):
+    doc = DocumentService.restore_document(db, doc_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="文档不存在")
+    return APIResponse(data={"message": f"文档 {doc.filename} 已恢复"})

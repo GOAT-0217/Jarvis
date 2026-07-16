@@ -47,6 +47,14 @@ export function updateCategory(id: string, body: { name?: string; sort_order?: n
   return client.put<any, { data: CatItem }>(`/knowledge/categories/${id}`, body)
 }
 
+export function listTrashDocuments(params: { page?: number; page_size?: number }) {
+  return client.get<any, { data: { items: DocItem[]; total: number; page: number; page_size: number } }>('/knowledge/documents/trash', { params })
+}
+
+export function restoreDocument(id: string) {
+  return client.post<any, { data: any }>(`/knowledge/documents/${id}/restore`)
+}
+
 export function deleteCategory(id: string) {
   return client.delete<any, { data: any }>(`/knowledge/categories/${id}`)
 }
