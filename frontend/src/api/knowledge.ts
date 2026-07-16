@@ -63,6 +63,13 @@ export function updateDocCategory(id: string, categoryId: string | null) {
   )
 }
 
+export function updateDocTags(id: string, tagIds: string[]) {
+  return client.put<any, { data: { tags: string[] } }>(
+    `/knowledge/documents/${id}/tags`,
+    { tag_ids: tagIds }
+  )
+}
+
 export function deleteCategory(id: string) {
   return client.delete<any, { data: any }>(`/knowledge/categories/${id}`)
 }

@@ -53,6 +53,37 @@
                 </el-select>
               </template>
             </el-table-column>
+            <el-table-column label="标签" width="180">
+              <template #default="{ row }">
+                <div class="tag-cell">
+                  <el-tag
+                    v-for="t in (row.tags || [])"
+                    :key="t"
+                    size="small"
+                    closable
+                    @close="removeTag(row, t)"
+                    style="margin: 1px 2px"
+                  >
+                    {{ t }}
+                  </el-tag>
+                  <el-select
+                    v-if="(row.tags || []).length < 5"
+                    model-value=""
+                    placeholder="+"
+                    size="small"
+                    style="width: 36px"
+                    @change="(val: string) => addTag(row, val)"
+                  >
+                    <el-option
+                      v-for="t in availableTags(row)"
+                      :key="t.id"
+                      :label="t.name"
+                      :value="t.id"
+                    />
+                  </el-select>
+                </div>
+              </template>
+            </el-table-column>
             <el-table-column prop="file_type" label="格式" width="70" />
             <el-table-column label="状态" width="90">
               <template #default="{ row }">
@@ -108,8 +139,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { listDocuments, deleteDocument, listTrashDocuments, restoreDocument, listCategories, updateDocCategory } from '@/api/knowledge'
-import type { DocItem, CatItem } from '@/api/knowledge'
+import { listDocuments, deleteDocument, listTrashDocuments, restoreDocument, listCategories, updateDocCategory, updateDocTags, listTags } from '@/api/knowledge'
+import type { DocItem, CatItem, TagItem } from '@/api/knowledge'
 import { Search } from '@element-plus/icons-vue'
 import DataState from '@/components/DataState.vue'
 import UploadDialog from '@/components/UploadDialog.vue'
@@ -159,6 +190,27 @@ async function handleCatChange(row: any, val: string) {
     row.category_id = id
     row.category_name = name
   }
+}
+
+// 标签
+const allTags = ref<TagItem[]>([])
+async function loadTags() {
+  try { const res = await listTags(); allTags.value = res.data || [] } catch { /* ignore */ }
+}
+function availableTags(row: any) {
+  return allTags.value.filter(t => !(row.tags || []).includes(t.name))
+}
+async function addTag(row: any, tagId: string) {
+  if ((row.tags || []).length >= 5) return
+  const tagIds = [...(row.tags || []), (allTags.value.find(t => t.id === tagId)?.name || '')]
+  const res = await updateDocTags(row.id, allTags.value.filter(t => tagIds.includes(t.name)).map(t => t.id))
+  row.tags = res.data.tags
+}
+async function removeTag(row: any, tagName: string) {
+  const tagIds = (row.tags || []).filter((t: string) => t !== tagName)
+    .map((t: string) => allTags.value.find(tt => tt.name === t)?.id).filter(Boolean)
+  const res = await updateDocTags(row.id, tagIds)
+  row.tags = res.data.tags
 }
 
 function selectCategory(catId: string) {
@@ -233,7 +285,7 @@ function onTabChange(tab: string) {
   }
 }
 
-onMounted(() => { loadCategories(); fetchData() })
+onMounted(() => { loadCategories(); loadTags(); fetchData() })
 </script>
 
 <style scoped>

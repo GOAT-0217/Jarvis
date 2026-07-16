@@ -99,6 +99,33 @@ async def update_document_category(
     return APIResponse(data={"category_id": category_id, "category_name": cat_name})
 
 
+@router.put("/documents/{doc_id}/tags", response_model=APIResponse[dict])
+async def update_document_tags(
+    doc_id: str,
+    body: dict,
+    current_user: User = Depends(require_knowledge_admin),
+    db: Session = Depends(get_db),
+):
+    """设置文档标签（最多 5 个）"""
+    tag_ids = (body.get("tag_ids") or [])[:5]
+    doc = db.query(Document).filter(Document.id == doc_id, Document.deleted_at.is_(None)).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="文档不存在")
+
+    # 清除旧标签关联
+    from models import DocumentTag
+    db.query(DocumentTag).filter(DocumentTag.document_id == doc_id).delete()
+
+    # 添加新标签
+    for tid in tag_ids:
+        dt = DocumentTag(document_id=doc_id, tag_id=tid)
+        db.add(dt)
+    db.commit()
+
+    tags = [dt.tag.name for dt in db.query(DocumentTag).filter(DocumentTag.document_id == doc_id).all()]
+    return APIResponse(data={"tags": tags})
+
+
 @router.delete("/documents/{doc_id}", response_model=APIResponse[dict])
 async def delete_document(
     doc_id: str,
