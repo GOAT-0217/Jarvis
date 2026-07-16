@@ -1,15 +1,18 @@
 <template>
-  <div style="display: flex; align-items: center; justify-content: space-between; height: 100%">
-    <div>
-      <el-button @click="$emit('toggleCollapse')" :icon="Fold" link />
-      <el-breadcrumb separator="/" style="display: inline-block; margin-left: 12px">
+  <div class="header-bar">
+    <div class="header-left">
+      <el-button @click="$emit('toggleCollapse')" :icon="Fold" link class="collapse-btn" />
+      <el-breadcrumb separator="/" class="header-breadcrumb">
         <el-breadcrumb-item :to="{ path: '/chat' }">首页</el-breadcrumb-item>
         <el-breadcrumb-item>{{ route.meta.title || route.name }}</el-breadcrumb-item>
       </el-breadcrumb>
     </div>
-    <el-dropdown @command="handleCommand">
-      <span style="cursor: pointer">
-        {{ displayName }}
+    <el-dropdown @command="handleCommand" class="user-dropdown">
+      <span class="user-trigger">
+        <div class="user-avatar">
+          <span>{{ (displayName || 'U')[0].toUpperCase() }}</span>
+        </div>
+        <span class="user-name">{{ displayName }}</span>
         <el-icon><ArrowDown /></el-icon>
       </span>
       <template #dropdown>
@@ -93,3 +96,71 @@ function handleCommand(cmd: string) {
   if (cmd === 'changePassword') showPasswordDialog.value = true
 }
 </script>
+
+<style scoped>
+.header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 100%;
+  width: 100%;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+}
+
+.collapse-btn {
+  color: var(--text-secondary) !important;
+}
+.collapse-btn:hover {
+  color: var(--accent) !important;
+}
+
+.header-breadcrumb {
+  margin-left: 8px;
+}
+.header-breadcrumb :deep(.el-breadcrumb__inner) {
+  color: var(--text-secondary) !important;
+}
+.header-breadcrumb :deep(.el-breadcrumb__inner.is-link:hover) {
+  color: var(--accent) !important;
+}
+.header-breadcrumb :deep(.el-breadcrumb__item:last-child .el-breadcrumb__inner) {
+  color: var(--text-primary) !important;
+}
+.header-breadcrumb :deep(.el-breadcrumb__separator) {
+  color: var(--text-muted) !important;
+}
+
+/* 用户下拉 */
+.user-trigger {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  transition: color 0.2s;
+}
+.user-trigger:hover {
+  color: var(--text-primary);
+}
+
+.user-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-teal) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.user-name {
+  font-size: 14px;
+}
+</style>

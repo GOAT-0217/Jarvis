@@ -83,9 +83,33 @@ async function handleSend(text: string) {
 </script>
 
 <style scoped>
-.chat-layout { display: flex; height: 100%; }
-.chat-sidebar { width: 260px; border-right: 1px solid #e4e7ed; }
-.chat-main { flex: 1; display: flex; flex-direction: column; }
-.chat-messages { flex: 1; overflow-y: auto; padding: 16px; }
-.chat-input-area { padding: 12px 16px; border-top: 1px solid #e4e7ed; }
+.chat-layout {
+  display: flex;
+  height: 100%;
+  margin: -24px;
+}
+
+.chat-sidebar {
+  width: 260px;
+  border-right: 1px solid var(--border-subtle);
+  background: var(--bg-sidebar);
+}
+
+.chat-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 32px;
+}
+
+.chat-input-area {
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-subtle);
+  background: rgba(15, 23, 41, 0.5);
+}
 </style>
