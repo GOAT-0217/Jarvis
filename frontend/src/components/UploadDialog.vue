@@ -23,8 +23,8 @@
             <el-option v-for="t in tags" :key="t.id" :label="t.name" :value="t.id" />
           </el-select>
           <template v-if="showNewTag">
-            <el-input v-model="newTagNameVal" placeholder="标签名" size="default" style="width: 120px; flex-shrink: 0" maxlength="10" @keydown.enter="createTag" />
-            <el-button type="primary" size="default" @click="createTag" :disabled="!newTagNameVal.trim()" style="flex-shrink: 0">确认</el-button>
+            <el-input v-model="newTagNameVal" placeholder="标签名" size="default" style="width: 120px; flex-shrink: 0" maxlength="10" @keydown.enter="handleCreateTag" />
+            <el-button type="primary" size="default" @click="handleCreateTag" :disabled="!newTagNameVal.trim()" style="flex-shrink: 0">确认</el-button>
             <el-button size="default" @click="showNewTag = false; newTagNameVal = ''" style="flex-shrink: 0">取消</el-button>
           </template>
           <template v-else>
@@ -50,7 +50,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { UploadFilled } from '@element-plus/icons-vue'
-import { listCategories, createCategory, listTags, createTag } from '@/api/knowledge'
+import { listCategories, createCategory as apiCreateCat, listTags, handleCreateTag as apiCreateTag } from '@/api/knowledge'
 import type { CatItem, TagItem } from '@/api/knowledge'
 
 const props = defineProps<{ visible: boolean }>()
@@ -67,12 +67,12 @@ const newCatName = ref('')
 const showNewTag = ref(false)
 const newTagNameVal = ref('')
 
-async function createTag() {
+async function handleCreateTag() {
   const name = newTagNameVal.value.trim()
   if (!name) return
   try {
     const color = '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')
-    const res = await createTag({ name, color })
+    const res = await apiCreateTag({ name, color })
     tags.value.push(res.data)
     tagIds.value.push(res.data.id)
     newTagNameVal.value = ''
@@ -92,7 +92,7 @@ async function createCategory() {
   const name = newCatName.value.trim()
   if (!name) return
   try {
-    const res = await createCategory({ name })
+    const res = await apiCreateCat({ name })
     categories.value.push(res.data)
     categoryId.value = res.data.id
     newCatName.value = ''
