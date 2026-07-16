@@ -44,6 +44,8 @@ defineEmits<{
   display: flex; justify-content: space-between; align-items: center;
   padding: 8px 12px; cursor: pointer; border-radius: 4px;
 }
-.session-item:hover { background: var(--bg-hover); }
-.session-item.active { background: #ddf4ff; color: var(--accent); }
+.session-item { color: var(--text-body); }
+.session-item:hover { background: rgba(0,0,0,0.05); }
+.session-item.active { background: #0969da; color: #fff; }
+.session-item.active .session-name { color: #fff; }
 </style>

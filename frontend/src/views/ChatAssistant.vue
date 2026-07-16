@@ -91,15 +91,15 @@ async function handleSend(text: string) {
 
 .chat-sidebar {
   width: 260px;
-  border-right: 1px solid var(--border-card);
-  background: var(--bg-card);
+  border-right: 1px solid #e0e2e6;
+  background: #e8e9ed;
 }
 
 .chat-main {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: var(--bg-card);
+  background: var(--bg-content);
 }
 
 .chat-messages {
@@ -112,6 +112,6 @@ async function handleSend(text: string) {
 .chat-input-area {
   padding: 16px 24px;
   border-top: 1px solid var(--border-card);
-  background: var(--bg-card);
+  background: #f3f4f6;
 }
 </style>
