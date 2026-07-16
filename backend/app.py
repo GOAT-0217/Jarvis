@@ -2,15 +2,10 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from pathlib import Path
 import os
 
 from routers import admin, auth, chat, knowledge
 from schemas import ErrorResponse
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-FRONTEND_DIR = BASE_DIR / "frontend"
 
 
 def create_app() -> FastAPI:
@@ -22,12 +17,11 @@ def create_app() -> FastAPI:
     """
     app = FastAPI(title="Cute Cat Bot API")
 
-    # CORS（Cross-Origin Resource Sharing，跨域资源共享）中间件是一种安全机制，
-    #   用于控制浏览器如何允许或阻止来自不同源（域名、协议或端口）的网页访问后端 API
-    # 解除跨域限制，让前端可以顺利与后端通信：
+    # CORS — 从环境变量读取允许的来源，生产和开发模式可分别配置
+    ALLOWED_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=ALLOWED_ORIGINS,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -68,10 +62,6 @@ def create_app() -> FastAPI:
     app.include_router(auth.router)
     app.include_router(chat.router)
     app.include_router(knowledge.router)
-
-    # serve frontend static files at root
-    if FRONTEND_DIR.exists():
-        app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="static")
 
     return app
 
