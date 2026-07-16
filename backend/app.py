@@ -5,7 +5,6 @@ from pathlib import Path
 import os
 
 import api as api_module
-from database import init_db
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = BASE_DIR / "frontend"
@@ -20,9 +19,6 @@ def create_app() -> FastAPI:
     """
     app = FastAPI(title="Cute Cat Bot API")
 
-    @app.on_event("startup")
-    async def _startup_init_db():
-        init_db()
     # CORS（Cross-Origin Resource Sharing，跨域资源共享）中间件是一种安全机制，
     #   用于控制浏览器如何允许或阻止来自不同源（域名、协议或端口）的网页访问后端 API
     # 解除跨域限制，让前端可以顺利与后端通信：
