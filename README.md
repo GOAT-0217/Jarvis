@@ -2,7 +2,7 @@
 
 > 基于 LangChain Agent + RAG 的多模态企业级 AI 知识助手，支持多模态输入、混合检索与流式对话。
 
-**Version:** v0.0.2 | **License:** MIT | **Python:** 3.12+
+**Version:** v1.0.1 | **License:** MIT | **Python:** 3.12+
 
 ---
 
@@ -415,6 +415,76 @@ Jarvis/
 ---
 
 ## 更新日志
+
+### v1.0.1 — 2026-07-16 全栈架构重构
+
+> **Release Theme:** Enterprise-Grade Fullstack Architecture
+
+本次发布是 Jarvis 从原型阶段迈向企业级产品的重要里程碑。我们将原有的单页 CDN 应用重构为真正的前后端分离架构，引入了模块化后端服务层、基于角色的访问控制（RBAC）三权分立模型、以及面向运营的管理后台。
+
+---
+
+#### 🏗️ 架构变更（Breaking Changes）
+
+- **前后端分离部署**：前端由 FastAPI `StaticFiles` 托管改为 Nginx 反向代理 + 独立静态资源服务。FastAPI 专注 API，Nginx 作为唯一流量入口，承担 SSL 终结、缓存策略与路由分发。
+- **API 路径迁移**：所有接口前缀统一为 `/api/v1/`。旧路径（`/auth/login`、`/chat`、`/documents` 等）已全部移除，无向后兼容重定向。详见 [API 参考](#api-参考)。
+- **角色重命名**：`admin` 角色拆分为 `super_admin`（超级管理员）和 `knowledge_admin`（知识管理员）。升级前需执行 Alembic 迁移：`alembic upgrade head`，该迁移会自动将现有 `admin` 用户转为 `super_admin`。
+- **数据库迁移接管**：`Base.metadata.create_all()` 自动建表已移除，Alembic 为唯一的 Schema 管理工具。首次部署必须运行 `alembic upgrade head`，否则应用启动后首次请求将报错。
+
+#### ✨ 新增功能
+
+- **管理后台（Dashboard）**：仪表盘首页展示文档总数、今日上传量、问答量趋势（ECharts 折线图）、热门搜索词 TOP 5、活跃用户排行。数据走 PostgreSQL 聚合 + Redis 5 分钟缓存。
+- **文档管理中心**：文档 CRUD、多条件筛选（分类/状态/搜索）、异步向量化处理（FastAPI `BackgroundTasks`）、重新索引、回收站（软删除 + 恢复）。支持 PDF / Word / Excel。
+- **分类与标签系统**：两级分类树 + 扁平标签，各自支持软删除。标签颜色可自定义。
+- **用户管理**：超管可查看用户列表、分配角色（`user` / `knowledge_admin` / `super_admin`）、停用账号。
+- **系统设置**：键值对配置表单（模型名称、Temperature、检索阈值、语音开关、日志保留天数），持久化至 `system_settings` 表。
+- **操作日志（Audit Log）**：所有后台管理操作（文档上传/删除、用户角色变更、系统设置修改）写入 `audit_logs` 表，JSONB 存储变更详情。仅超级管理员可查看，不可编辑或删除。
+- **使用统计（Usage Logs）**：每次流式 AI 问答结束时记录用户、会话、查询摘要、附件标记。为后续成本核算和用户行为分析提供数据基础。
+
+#### 🛠️ 工程改进
+
+- **后端模块化**：单体 `api.py`（459 行）拆分为 `routers/` → `services/` → `core/` 三层架构，每层职责单一。
+  - `routers/`: `auth.py` · `chat.py` · `knowledge.py` · `admin.py` · `users.py`
+  - `services/`: `agent_service.py` · `rag_service.py` · `document_service.py` · `user_service.py` · `analytics_service.py`
+  - `core/`: `database.py` · `cache.py` · `milvus_client.py` · `embedding.py` · `security.py`
+- **前端现代化**：CDN Vue 3 Options API → Vite + Vue 3 Composition API + TypeScript + Vue Router 4 + Element Plus。84 个 `.vue` / `.ts` 文件，零 `any` 类型逃逸。
+- **统一响应格式**：所有接口返回 `{code: int, message: str, data: T | null}`。分页统一为 `{items: T[], total: int, page: int, page_size: int}`。异常由全局 handler 统一序列化。
+- **权限模型升级**：`Depends(get_current_user)` → `Depends(require_knowledge_admin)` → `Depends(require_super_admin)` 三级权限注入，路由声明即权限声明，消除分散的 `if role != 'admin'` 防御代码。
+- **数据库 7 张新表**：`documents` · `categories` · `tags` · `document_tags` · `system_settings` · `usage_logs` · `audit_logs`，全部通过 Alembic 自动生成迁移。
+- **索引策略**：对高频查询列（`documents.status + deleted_at`、`usage_logs.created_at`、`audit_logs.created_at` 等）建立复合索引。
+- **CORS 安全加固**：`allow_origins` 从 `["*"]` 改为环境变量 `CORS_ORIGINS` 控制，生产环境按需配置允许域名。
+- **部署容器化**：新增 `nginx/Dockerfile`、`backend/Dockerfile`，`docker compose up -d --build` 一键编排全部 5 个服务（Nginx + FastAPI + PostgreSQL + Redis + Milvus）。
+
+#### ⚠️ 已知限制（Known Issues）
+
+- 文档重新上传/重新索引时不会清理旧的 Milvus 向量和 BM25 统计，可能导致检索返回陈旧数据。将在 v1.0.2 修复。
+- 软删除的文档不会清理 Milvus 中的关联向量，向量检索可能仍命中"已删除"文档。将在 v1.0.2 修复。
+- `usage_logs.tokens_used` 当前固定记录为 0，上游 Agent 未返回 token 计数字段。成本核算功能需等待模型接口升级。
+- 前端测试（Vitest + Playwright E2E）暂未纳入 CI，列于后续迭代计划。
+
+#### 🔄 升级指南（Upgrade from v0.0.2）
+
+```bash
+# 1. 拉取最新代码
+git pull origin master
+
+# 2. 安装新依赖
+cd frontend && npm install && cd ..
+
+# 3. 执行数据库迁移（将 admin → super_admin）
+cd backend && uv run alembic upgrade head && cd ..
+
+# 4. 构建前端
+cd frontend && npm run build && cd ..
+
+# 5. 重启服务栈
+docker compose up -d --build
+
+# 6. 验证
+curl http://localhost/api/v1/auth/me
+```
+
+---
 
 ### v0.0.2 — 2026-07-13 语音输入与附件上传
 
