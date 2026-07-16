@@ -39,7 +39,8 @@ def test_login_success():
     _create_user("test_user", "user")
     resp = _login(client, "test_user")
     assert resp.status_code == 200
-    assert resp.json()["access_token"] is not None
+    assert resp.json()["code"] == 0
+    assert resp.json()["data"]["access_token"] is not None
 
 def test_login_wrong_password():
     _create_user("test_user", "user")
@@ -52,15 +53,16 @@ def test_me_requires_auth():
 
 def test_knowledge_admin_access():
     _create_user("test_kadmin", "knowledge_admin")
-    token = _login(client, "test_kadmin").json()["access_token"]
+    token = _login(client, "test_kadmin").json()["data"]["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
     resp = client.get("/api/v1/auth/me", headers=headers)
     assert resp.status_code == 200
-    assert resp.json()["role"] == "knowledge_admin"
+    assert resp.json()["code"] == 0
+    assert resp.json()["data"]["role"] == "knowledge_admin"
 
 def test_user_cannot_access_admin():
     _create_user("test_user", "user")
-    token = _login(client, "test_user").json()["access_token"]
+    token = _login(client, "test_user").json()["data"]["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
     resp = client.get("/api/v1/admin/users", headers=headers)
     assert resp.status_code == 403

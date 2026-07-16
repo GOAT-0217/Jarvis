@@ -11,12 +11,12 @@ from core.security import (
     resolve_role,
 )
 from models import User
-from schemas import AuthResponse, CurrentUserResponse, LoginRequest, RegisterRequest
+from schemas import APIResponse, AuthResponse, CurrentUserResponse, LoginRequest, RegisterRequest
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
 
-@router.post("/register", response_model=AuthResponse)
+@router.post("/register", response_model=APIResponse[AuthResponse])
 async def register(request: RegisterRequest, db: Session = Depends(get_db)):
     username = (request.username or "").strip()
     password = (request.password or "").strip()
@@ -33,18 +33,18 @@ async def register(request: RegisterRequest, db: Session = Depends(get_db)):
     db.commit()
 
     token = create_access_token(username=username, role=role)
-    return AuthResponse(access_token=token, username=username, role=role)
+    return APIResponse(data=AuthResponse(access_token=token, username=username, role=role))
 
 
-@router.post("/login", response_model=AuthResponse)
+@router.post("/login", response_model=APIResponse[AuthResponse])
 async def login(request: LoginRequest, db: Session = Depends(get_db)):
     user = authenticate_user(db, request.username, request.password)
     if not user:
         raise HTTPException(status_code=401, detail="用户名或密码错误")
     token = create_access_token(username=user.username, role=user.role)
-    return AuthResponse(access_token=token, username=user.username, role=user.role)
+    return APIResponse(data=AuthResponse(access_token=token, username=user.username, role=user.role))
 
 
-@router.get("/me", response_model=CurrentUserResponse)
+@router.get("/me", response_model=APIResponse[CurrentUserResponse])
 async def me(current_user: User = Depends(get_current_user)):
-    return CurrentUserResponse(username=current_user.username, role=current_user.role)
+    return APIResponse(data=CurrentUserResponse(username=current_user.username, role=current_user.role))
