@@ -18,7 +18,8 @@ export function useChat() {
   async function loadSessions() {
     try {
       const res = await getSessions()
-      sessions.value = res.data.sessions || []
+      // 后端 sessions 接口返回 {sessions: [...]}，未包装在 data 内
+      sessions.value = (res.data?.sessions || res.sessions || [])
     } catch (e: any) {
       console.error('加载会话列表失败:', e)
     }
@@ -27,7 +28,8 @@ export function useChat() {
   async function loadMessages(sessionId: string) {
     try {
       const res = await getSessionMessages(sessionId)
-      const msgs = res.data.messages || []
+      // 后端 messages 接口返回 {messages: [...]}，未包装在 data 内
+      const msgs = res.data?.messages || res.messages || []
       messages.value = msgs.map((m: MessageInfo) => ({
         id: `${m.timestamp}-${Math.random()}`,
         role: m.type === 'human' ? 'user' : 'assistant',
