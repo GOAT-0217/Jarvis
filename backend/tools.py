@@ -127,8 +127,11 @@ def get_current_weather(location: str, extensions: Optional[str] = "base") -> st
 
 
 @tool("search_knowledge_base")
-def search_knowledge_base(query: str) -> str:
-    """Search for information in the knowledge base using hybrid retrieval (dense + sparse vectors)."""
+def search_knowledge_base(query: str, category: str | None = None) -> str:
+    """Search for information in the knowledge base using hybrid retrieval (dense + sparse vectors).
+
+    If category is provided, only search documents in that category (filter on category_id in Milvus)."""
+    global _KNOWLEDGE_TOOL_CALLS_THIS_TURN
     # ... guards omitted ...
     global _KNOWLEDGE_TOOL_CALLS_THIS_TURN
     if _KNOWLEDGE_TOOL_CALLS_THIS_TURN >= 1:
@@ -139,6 +142,11 @@ def search_knowledge_base(query: str) -> str:
     _KNOWLEDGE_TOOL_CALLS_THIS_TURN += 1
 
     from rag_pipeline import run_rag_graph
+
+    # 设置分类过滤（供 Milvus hybrid_search 使用）
+    if category:
+        from core.milvus_client import milvus_manager
+        milvus_manager._search_category = category
 
     # 在同步工具中获取当前的 Loop 可能不可靠，但我们之前是通过 call_soon_threadsafe 调度的。
     # 这里 _RAG_STEP_QUEUE 是在主线程/Loop 设置的全局变量。

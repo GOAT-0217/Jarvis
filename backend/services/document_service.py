@@ -62,7 +62,7 @@ class DocumentService:
         return items, total
 
     @staticmethod
-    def create_document_record(db: Session, filename: str, file_path: str, file_size: int, file_type: str, uploaded_by: int) -> Document:
+    def create_document_record(db: Session, filename: str, file_path: str, file_size: int, file_type: str, uploaded_by: int, category_id: str | None = None) -> Document:
         doc = Document(
             id=str(uuid.uuid4()),
             filename=filename,
@@ -71,6 +71,7 @@ class DocumentService:
             file_type=file_type,
             status="processing",
             uploaded_by=uploaded_by,
+            category_id=category_id,
         )
         db.add(doc)
         db.commit()
@@ -88,7 +89,7 @@ class DocumentService:
             db.commit()
 
     @staticmethod
-    def process_document_async(doc_id: str, file_path: str, filename: str):
+    def process_document_async(doc_id: str, file_path: str, filename: str, category_id: str | None = None):
         """FastAPI BackgroundTasks calls this to process a document after upload."""
         db = SessionLocal()
         try:
@@ -102,6 +103,13 @@ class DocumentService:
             if not leaf_docs:
                 DocumentService.update_document_status(db, doc_id, "error", error_message="未生成可检索叶子分块")
                 return
+
+            # 将 category_id 写入每个 chunk 的 metadata，供后续按分类检索
+            if category_id:
+                for d in leaf_docs:
+                    d["category_id"] = category_id
+                for d in parent_docs:
+                    d["category_id"] = category_id
 
             parent_chunk_store.upsert_documents(parent_docs)
             milvus_writer.write_documents(leaf_docs)

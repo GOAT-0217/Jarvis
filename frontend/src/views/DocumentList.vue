@@ -5,25 +5,50 @@
       <el-button type="primary" @click="showUpload = true">上传文档</el-button>
     </div>
 
+    <!-- 分类筛选标签 -->
+    <div class="category-filters">
+      <span
+        :class="['cat-tag', { active: !selectedCategory }]"
+        @click="selectCategory('')"
+      >全部</span>
+      <span
+        v-for="cat in categories"
+        :key="cat.id"
+        :class="['cat-tag', { active: selectedCategory === cat.id }]"
+        @click="selectCategory(cat.id)"
+      >
+        <span class="cat-dot" :style="{ background: catColor(cat.id) }"></span>
+        {{ cat.name }}
+      </span>
+    </div>
+
     <el-tabs v-model="activeTab" @tab-change="onTabChange">
       <el-tab-pane label="文档列表" name="documents">
         <DataState :loading="loading" :error="error" :empty="!loading && !error && documents.length === 0"
           empty-text="还没有文档，上传第一份吧" @retry="fetchData">
           <el-table :data="documents" stripe>
             <el-table-column prop="filename" label="文件名" />
-            <el-table-column prop="file_type" label="类型" width="80" />
-            <el-table-column label="状态" width="100">
+            <el-table-column label="分类" width="100">
               <template #default="{ row }">
-                <el-tag :type="row.status === 'ready' ? 'success' : row.status === 'error' ? 'danger' : 'warning'">
-                  {{ row.status }}
+                <span v-if="row.category_name" class="cat-label" :style="catStyle(row.category_name)">
+                  {{ row.category_name }}
+                </span>
+                <span v-else style="color: #6d6f78; font-size: 12px">未分类</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="file_type" label="格式" width="70" />
+            <el-table-column label="状态" width="90">
+              <template #default="{ row }">
+                <el-tag :type="row.status === 'ready' ? 'success' : row.status === 'error' ? 'danger' : 'warning'" size="small">
+                  {{ row.status === 'ready' ? '就绪' : row.status === 'error' ? '失败' : '处理中' }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="chunk_count" label="切片数" width="80" />
-            <el-table-column prop="created_at" label="上传时间" width="180" />
-            <el-table-column label="操作" width="150">
+            <el-table-column prop="chunk_count" label="切片" width="60" />
+            <el-table-column prop="created_at" label="上传时间" width="170" />
+            <el-table-column label="操作" width="80">
               <template #default="{ row }">
-                <el-button link type="danger" @click="handleDelete(row.id)">删除</el-button>
+                <el-button link type="danger" size="small" @click="handleDelete(row.id)">删除</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -66,10 +91,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { listDocuments, deleteDocument, listTrashDocuments, restoreDocument } from '@/api/knowledge'
-import type { DocItem } from '@/api/knowledge'
+import { listDocuments, deleteDocument, listTrashDocuments, restoreDocument, listCategories } from '@/api/knowledge'
+import type { DocItem, CatItem } from '@/api/knowledge'
 import DataState from '@/components/DataState.vue'
 import UploadDialog from '@/components/UploadDialog.vue'
+
+const CAT_COLORS = ['#5eead4', '#a78bfa', '#f59e0b', '#3b82f6', '#ef4444', '#22c55e', '#ec4899', '#6366f1']
 
 const documents = ref<DocItem[]>([])
 const loading = ref(true)
@@ -77,6 +104,8 @@ const error = ref('')
 const page = ref(1)
 const total = ref(0)
 const showUpload = ref(false)
+const categories = ref<CatItem[]>([])
+const selectedCategory = ref('')
 
 const activeTab = ref('documents')
 const trashDocuments = ref<DocItem[]>([])
@@ -85,11 +114,40 @@ const trashError = ref('')
 const trashPage = ref(1)
 const trashTotal = ref(0)
 
+function catColor(id: string): string {
+  let hash = 0
+  for (const c of id) hash = ((hash << 5) - hash) + c.charCodeAt(0)
+  return CAT_COLORS[Math.abs(hash) % CAT_COLORS.length]
+}
+
+function catStyle(name: string) {
+  let hash = 0
+  for (const c of name) hash = ((hash << 5) - hash) + c.charCodeAt(0)
+  return { background: CAT_COLORS[Math.abs(hash) % CAT_COLORS.length] + '20', color: CAT_COLORS[Math.abs(hash) % CAT_COLORS.length], borderColor: CAT_COLORS[Math.abs(hash) % CAT_COLORS.length] + '40' }
+}
+
+function selectCategory(catId: string) {
+  selectedCategory.value = catId
+  page.value = 1
+  fetchData()
+}
+
+async function loadCategories() {
+  try {
+    const res = await listCategories()
+    categories.value = res.data || []
+  } catch { /* ignore */ }
+}
+
 async function fetchData() {
   loading.value = true
   error.value = ''
   try {
-    const res = await listDocuments({ page: page.value, page_size: 20 })
+    const res = await listDocuments({
+      page: page.value,
+      page_size: 20,
+      category_id: selectedCategory.value || undefined,
+    })
     documents.value = res.data.items
     total.value = res.data.total
   } catch (e: any) {
@@ -139,5 +197,25 @@ function onTabChange(tab: string) {
   }
 }
 
-onMounted(fetchData)
+onMounted(() => { loadCategories(); fetchData() })
 </script>
+
+<style scoped>
+.category-filters {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px;
+}
+.cat-tag {
+  display: flex; align-items: center; gap: 5px;
+  padding: 5px 12px; border-radius: 6px; cursor: pointer;
+  font-size: 13px; color: #8b949e; background: rgba(30, 36, 51, 0.5);
+  border: 1px solid rgba(94, 234, 212, 0.08); transition: all 0.15s;
+}
+.cat-tag:hover { color: #e2e8f0; border-color: rgba(94, 234, 212, 0.2); }
+.cat-tag.active { color: #5eead4; border-color: #5eead4; background: rgba(94, 234, 212, 0.08); }
+.cat-dot { width: 7px; height: 7px; border-radius: 50%; }
+
+.cat-label {
+  display: inline-block; padding: 2px 8px; border-radius: 4px;
+  font-size: 12px; font-weight: 500; border: 1px solid;
+}
+</style>

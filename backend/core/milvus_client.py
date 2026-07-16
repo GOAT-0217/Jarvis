@@ -18,6 +18,7 @@ class MilvusManager:
         self.collection_name = os.getenv("MILVUS_COLLECTION", "embeddings_collection")
         self.uri = f"http://{self.host}:{self.port}"
         self.client = None
+        self._search_category: str | None = None  # 按分类过滤检索
 
     def _get_client(self) -> MilvusClient:
         """该函数实现Milvus客户端的懒加载"""
@@ -159,13 +160,20 @@ class MilvusManager:
     ) -> list[dict]:
         """
         混合检索 - 使用 RRF 融合密集向量和稀疏向量的检索结果
-        
+
         :param dense_embedding: 密集向量
         :param sparse_embedding: 稀疏向量 {index: value, ...}
         :param top_k: 返回结果数量
         :param rrf_k: RRF 算法参数 k，默认60
         :return: 检索结果列表
         """
+        # 按分类过滤
+        if self._search_category and not filter_expr:
+            filter_expr = f'category_id == "{self._search_category}"'
+        elif self._search_category and filter_expr:
+            filter_expr = f'({filter_expr}) and category_id == "{self._search_category}"'
+        self._search_category = None  # 用完即清
+
         output_fields = [
             "text",
             "filename",
