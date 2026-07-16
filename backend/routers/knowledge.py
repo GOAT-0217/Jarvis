@@ -1,166 +1,203 @@
-"""Knowledge routes — document upload, list, delete."""
+"""Knowledge routes — document CRUD, categories, tags with unified APIResponse."""
 import os
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, Request, BackgroundTasks
+from sqlalchemy.orm import Session
 
-from core.embedding import embedding_service
-from core.milvus_client import MilvusManager
-from core.security import require_knowledge_admin
-from document_loader import DocumentLoader
-from milvus_writer import MilvusWriter
-from parent_chunk_store import ParentChunkStore
+from core.security import get_current_user, get_db, require_knowledge_admin
+from models import User, Document
+from services.document_service import DocumentService, UPLOAD_DIR
 from schemas import (
-    DocumentDeleteResponse,
-    DocumentInfo,
-    DocumentListResponse,
-    DocumentUploadResponse,
+    APIResponse, PaginatedData,
+    DocumentSchema, CategorySchema, CategoryCreate, CategoryUpdate,
+    TagSchema, TagCreate, DocumentListQuery,
 )
 
 router = APIRouter(prefix="/api/v1/knowledge", tags=["knowledge"])
+service = DocumentService()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR.parent / "data"
-UPLOAD_DIR = DATA_DIR / "documents"
-
-loader = DocumentLoader()
-parent_chunk_store = ParentChunkStore()
-milvus_manager = MilvusManager()
-milvus_writer = MilvusWriter(embedding_service=embedding_service, milvus_manager=milvus_manager)
+UPLOAD_DIR_LOCAL = DATA_DIR / "documents"
 
 
-def _remove_bm25_stats_for_filename(filename: str) -> None:
-    """删除 Milvus 中该文件对应 chunk 前，先从持久化 BM25 统计中扣减。"""
-    rows = milvus_manager.query_all(
-        filter_expr=f'filename == "{filename}"',
-        output_fields=["text"],
+@router.get("/documents", response_model=APIResponse[PaginatedData[DocumentSchema]])
+async def list_documents(
+    query: DocumentListQuery = Depends(),
+    current_user: User = Depends(require_knowledge_admin),
+    db: Session = Depends(get_db),
+):
+    items, total = service.list_documents(
+        db, query.page, query.page_size, query.search, query.category_id, query.status
     )
-    texts = [r.get("text") or "" for r in rows]
-    embedding_service.increment_remove_documents(texts)
-
-
-@router.get("/documents", response_model=DocumentListResponse)
-async def list_documents(_=Depends(require_knowledge_admin)):
-    """获取已上传的文档列表（管理员）
-        该接口为管理员获取文档列表。
-            1.首先初始化Milvus集合并查询文件名及类型；
-            2.随后遍历结果，按文件名聚合统计切片数量；
-            3.最后构建文档信息对象并返回响应。若出错则抛出500异常。
-    """
-    try:
-        milvus_manager.init_collection()     # 1
-
-        results = milvus_manager.query(
-            output_fields=["filename", "file_type"],
-            limit=10000,
+    docs = [
+        DocumentSchema(
+            id=d.id, filename=d.filename, file_type=d.file_type, file_size=d.file_size,
+            status=d.status, category_id=d.category_id, char_count=d.char_count,
+            chunk_count=d.chunk_count, uploaded_by=str(d.uploaded_by) if d.uploaded_by else None,
+            created_at=d.created_at.isoformat(),
+            tags=[dt.tag.name for dt in d.tags_rel],
         )
-
-        file_stats = {}
-        # 2
-        for item in results:
-            filename = item.get("filename", "")
-            file_type = item.get("file_type", "")
-            if filename not in file_stats:
-                file_stats[filename] = {
-                    "filename": filename,
-                    "file_type": file_type,
-                    "chunk_count": 0,
-                }
-            file_stats[filename]["chunk_count"] += 1
-        # 3
-        documents = [DocumentInfo(**stats) for stats in file_stats.values()]
-        return DocumentListResponse(documents=documents)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"获取文档列表失败: {str(e)}")
+        for d in items
+    ]
+    return APIResponse(data=PaginatedData(items=docs, total=total, page=query.page, page_size=query.page_size))
 
 
-@router.post("/documents/upload", response_model=DocumentUploadResponse)
-async def upload_document(file: UploadFile = File(...), _=Depends(require_knowledge_admin)):
-    """上传文档并进行 embedding（管理员）
-        实现管理员上传文档功能：
-            校验文件类型后，先清理旧数据（含BM25统计、Milvus向量及父分块），
-            保存文件、解析内容并分级存储。
-            最终返回处理结果，确保数据一致性与检索有效性。
-    """
-    try:
-        filename = file.filename or ""
-        file_lower = filename.lower()
-        if not filename:
-            raise HTTPException(status_code=400, detail="文件名不能为空")
-        if not (
-            file_lower.endswith(".pdf")
-            or file_lower.endswith((".docx", ".doc"))
-            or file_lower.endswith((".xlsx", ".xls"))
-        ):
-            raise HTTPException(status_code=400, detail="仅支持 PDF、Word 和 Excel 文档")
+@router.post("/documents/upload", response_model=APIResponse[DocumentSchema])
+async def upload_document(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    current_user: User = Depends(require_knowledge_admin),
+    db: Session = Depends(get_db),
+):
+    filename = file.filename or ""
+    file_lower = filename.lower()
+    if not filename:
+        raise HTTPException(status_code=400, detail="文件名不能为空")
+    if not file_lower.endswith((".pdf", ".docx", ".doc", ".xlsx", ".xls")):
+        raise HTTPException(status_code=400, detail="仅支持 PDF、Word 和 Excel 文档")
 
-        os.makedirs(UPLOAD_DIR, exist_ok=True)
-        milvus_manager.init_collection()
+    file_type = file_lower.rsplit(".", 1)[-1]
+    os.makedirs(UPLOAD_DIR_LOCAL, exist_ok=True)
+    file_path = UPLOAD_DIR_LOCAL / filename
+    content = await file.read()
+    with open(file_path, "wb") as f:
+        f.write(content)
 
-        delete_expr = f'filename == "{filename}"'
-        try:
-            _remove_bm25_stats_for_filename(filename)
-        except Exception:
-            pass
-        try:
-            milvus_manager.delete(delete_expr)
-        except Exception:
-            pass
-        try:
-            parent_chunk_store.delete_by_filename(filename)
-        except Exception:
-            pass
+    doc = service.create_document_record(db, filename, str(file_path), len(content), file_type, current_user.id)
 
-        file_path = UPLOAD_DIR / filename
-        with open(file_path, "wb") as f:
-            content = await file.read()
-            f.write(content)
+    background_tasks.add_task(service.process_document_async, doc.id, str(file_path), filename)
 
-        try:
-            new_docs = loader.load_document(str(file_path), filename)
-        except Exception as doc_err:
-            raise HTTPException(status_code=500, detail=f"文档处理失败: {doc_err}")
-
-        if not new_docs:
-            raise HTTPException(status_code=500, detail="文档处理失败，未能提取内容")
-
-        parent_docs = [doc for doc in new_docs if int(doc.get("chunk_level", 0) or 0) in (1, 2)]
-        leaf_docs = [doc for doc in new_docs if int(doc.get("chunk_level", 0) or 0) == 3]
-        if not leaf_docs:
-            raise HTTPException(status_code=500, detail="文档处理失败，未生成可检索叶子分块")
-
-        parent_chunk_store.upsert_documents(parent_docs)
-        milvus_writer.write_documents(leaf_docs)
-
-        return DocumentUploadResponse(
-            filename=filename,
-            chunks_processed=len(leaf_docs),
-            message=(
-                f"成功上传并处理 {filename}，叶子分块 {len(leaf_docs)} 个，"
-                f"父级分块 {len(parent_docs)} 个（存入 PostgreSQL）"
-            ),
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"文档上传失败: {str(e)}")
+    return APIResponse(data=DocumentSchema(
+        id=doc.id, filename=doc.filename, file_type=doc.file_type, file_size=doc.file_size,
+        status=doc.status, char_count=0, chunk_count=0,
+        uploaded_by=str(doc.uploaded_by) if doc.uploaded_by else None,
+        created_at=doc.created_at.isoformat(), tags=[],
+    ))
 
 
-@router.delete("/documents/{filename}", response_model=DocumentDeleteResponse)
-async def delete_document(filename: str, _=Depends(require_knowledge_admin)):
-    """删除文档在 Milvus 中的向量（保留本地文件，管理员）"""
-    try:
-        milvus_manager.init_collection()
+@router.delete("/documents/{doc_id}", response_model=APIResponse[dict])
+async def delete_document(
+    doc_id: str,
+    request: Request,
+    current_user: User = Depends(require_knowledge_admin),
+    db: Session = Depends(get_db),
+):
+    doc = service.soft_delete_document(db, doc_id, current_user.id, request.client.host if request.client else None)
+    if not doc:
+        raise HTTPException(status_code=404, detail="文档不存在")
+    return APIResponse(data={"message": f"文档 {doc.filename} 已删除"})
 
-        delete_expr = f'filename == "{filename}"'
-        _remove_bm25_stats_for_filename(filename)
-        result = milvus_manager.delete(delete_expr)
-        parent_chunk_store.delete_by_filename(filename)
 
-        return DocumentDeleteResponse(
-            filename=filename,
-            chunks_deleted=result.get("delete_count", 0) if isinstance(result, dict) else 0,
-            message=f"成功删除文档 {filename} 的向量数据（本地文件已保留）",
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"删除文档失败: {str(e)}")
+@router.post("/documents/{doc_id}/reindex", response_model=APIResponse[dict])
+async def reindex_document(
+    doc_id: str,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(require_knowledge_admin),
+    db: Session = Depends(get_db),
+):
+    doc = db.query(Document).filter(Document.id == doc_id, Document.deleted_at.is_(None)).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="文档不存在")
+    doc.status = "processing"
+    db.commit()
+    background_tasks.add_task(service.process_document_async, doc.id, doc.file_path, doc.filename)
+    return APIResponse(data={"message": "已提交重新索引任务"})
+
+
+@router.get("/categories", response_model=APIResponse[list[CategorySchema]])
+async def list_categories(
+    current_user: User = Depends(require_knowledge_admin),
+    db: Session = Depends(get_db),
+):
+    cats = service.list_categories(db)
+    return APIResponse(data=[
+        CategorySchema(id=c.id, name=c.name, parent_id=c.parent_id, sort_order=c.sort_order, children=[])
+        for c in cats
+    ])
+
+
+@router.post("/categories", response_model=APIResponse[CategorySchema])
+async def create_category(
+    body: CategoryCreate,
+    request: Request,
+    current_user: User = Depends(require_knowledge_admin),
+    db: Session = Depends(get_db),
+):
+    cat = service.create_category(
+        db, body.name, body.parent_id, body.sort_order,
+        current_user.id, request.client.host if request.client else None,
+    )
+    return APIResponse(data=CategorySchema(
+        id=cat.id, name=cat.name, parent_id=cat.parent_id, sort_order=cat.sort_order, children=[],
+    ))
+
+
+@router.put("/categories/{cat_id}", response_model=APIResponse[CategorySchema])
+async def update_category(
+    cat_id: str,
+    body: CategoryUpdate,
+    request: Request,
+    current_user: User = Depends(require_knowledge_admin),
+    db: Session = Depends(get_db),
+):
+    cat = service.update_category(
+        db, cat_id, body.name, body.parent_id, body.sort_order,
+        current_user.id, request.client.host if request.client else None,
+    )
+    if not cat:
+        raise HTTPException(status_code=404, detail="分类不存在")
+    return APIResponse(data=CategorySchema(
+        id=cat.id, name=cat.name, parent_id=cat.parent_id, sort_order=cat.sort_order, children=[],
+    ))
+
+
+@router.delete("/categories/{cat_id}", response_model=APIResponse[dict])
+async def delete_category(
+    cat_id: str,
+    request: Request,
+    current_user: User = Depends(require_knowledge_admin),
+    db: Session = Depends(get_db),
+):
+    cat = service.soft_delete_category(db, cat_id, current_user.id, request.client.host if request.client else None)
+    if not cat:
+        raise HTTPException(status_code=404, detail="分类不存在")
+    return APIResponse(data={"message": f"分类 {cat.name} 已删除"})
+
+
+@router.get("/tags", response_model=APIResponse[list[TagSchema]])
+async def list_tags(
+    current_user: User = Depends(require_knowledge_admin),
+    db: Session = Depends(get_db),
+):
+    tags = service.list_tags(db)
+    return APIResponse(data=[TagSchema(id=t.id, name=t.name, color=t.color) for t in tags])
+
+
+@router.post("/tags", response_model=APIResponse[TagSchema])
+async def create_tag(
+    body: TagCreate,
+    request: Request,
+    current_user: User = Depends(require_knowledge_admin),
+    db: Session = Depends(get_db),
+):
+    tag = service.create_tag(
+        db, body.name, body.color,
+        current_user.id, request.client.host if request.client else None,
+    )
+    return APIResponse(data=TagSchema(id=tag.id, name=tag.name, color=tag.color))
+
+
+@router.delete("/tags/{tag_id}", response_model=APIResponse[dict])
+async def delete_tag(
+    tag_id: str,
+    request: Request,
+    current_user: User = Depends(require_knowledge_admin),
+    db: Session = Depends(get_db),
+):
+    tag = service.soft_delete_tag(db, tag_id, current_user.id, request.client.host if request.client else None)
+    if not tag:
+        raise HTTPException(status_code=404, detail="标签不存在")
+    return APIResponse(data={"message": f"标签 {tag.name} 已删除"})

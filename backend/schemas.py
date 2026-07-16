@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+from datetime import datetime
 from pydantic import BaseModel
 from typing import Optional, List
 
@@ -181,3 +184,58 @@ class ErrorResponse(PydanticBaseModel):
     code: int
     message: str
     data: None = None
+
+
+# ── Document management schemas ────────────────────────────────────────────────
+
+class DocumentSchema(PydanticBaseModel):
+    id: str
+    filename: str
+    file_type: str
+    file_size: int
+    status: str
+    category_id: str | None = None
+    char_count: int = 0
+    chunk_count: int = 0
+    uploaded_by: str | None = None
+    created_at: str
+    tags: list[str] = []
+
+
+class CategorySchema(PydanticBaseModel):
+    id: str
+    name: str
+    parent_id: str | None = None
+    sort_order: int = 0
+    children: list[CategorySchema] = []
+
+
+class CategoryCreate(PydanticBaseModel):
+    name: str
+    parent_id: str | None = None
+    sort_order: int = 0
+
+
+class CategoryUpdate(PydanticBaseModel):
+    name: str | None = None
+    parent_id: str | None = None
+    sort_order: int | None = None
+
+
+class TagSchema(PydanticBaseModel):
+    id: str
+    name: str
+    color: str
+
+
+class TagCreate(PydanticBaseModel):
+    name: str
+    color: str = "#409EFF"
+
+
+class DocumentListQuery(PydanticBaseModel):
+    page: int = 1
+    page_size: int = 20
+    search: str | None = None
+    category_id: str | None = None
+    status: str | None = None
