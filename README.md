@@ -396,73 +396,50 @@ Jarvis/
 
 ### v1.0.1 — 2026-07-16 全栈化
 
-> **Release Theme:** Enterprise-Grade Fullstack Architecture
+Jarvis 从单页原型重构为 **真正的前后端分离企业级平台**。
 
-本次发布是 Jarvis 从原型阶段迈向企业级产品的重要里程碑。我们将原有的单页 CDN 应用重构为真正的前后端分离架构，引入了模块化后端服务层、基于角色的访问控制（RBAC）三权分立模型、以及面向运营的管理后台。
+#### 🏗️ 架构变更
 
----
+- **前后端分离 + Nginx 反向代理** — 唯一入口，SSL 终结，静态资源与 API 解耦
+- **API 路径统一** — 全部迁移至 `/api/v1/`，旧路径已移除
+- **角色升级** — `admin` → `super_admin` + `knowledge_admin`，执行 Alembic 迁移自动转换存量用户
+- **Alembic 接管 Schema** — `create_all()` 已移除，迁移脚本管理全生命周期
 
-#### 🏗️ 架构变更（Breaking Changes）
+#### ✨ 功能
 
-- **前后端分离部署**：前端由 FastAPI `StaticFiles` 托管改为 Nginx 反向代理 + 独立静态资源服务。FastAPI 专注 API，Nginx 作为唯一流量入口，承担 SSL 终结、缓存策略与路由分发。
-- **API 路径迁移**：所有接口前缀统一为 `/api/v1/`。旧路径（`/auth/login`、`/chat`、`/documents` 等）已全部移除，无向后兼容重定向。详见 [API 参考](#api-参考)。
-- **角色重命名**：`admin` 角色拆分为 `super_admin`（超级管理员）和 `knowledge_admin`（知识管理员）。升级前需执行 Alembic 迁移：`alembic upgrade head`，该迁移会自动将现有 `admin` 用户转为 `super_admin`。
-- **数据库迁移接管**：`Base.metadata.create_all()` 自动建表已移除，Alembic 为唯一的 Schema 管理工具。首次部署必须运行 `alembic upgrade head`，否则应用启动后首次请求将报错。
-
-#### ✨ 新增功能
-
-- **管理后台（Dashboard）**：仪表盘首页展示文档总数、今日上传量、问答量趋势（ECharts 折线图）、热门搜索词 TOP 5、活跃用户排行。数据走 PostgreSQL 聚合 + Redis 5 分钟缓存。
-- **文档管理中心**：文档 CRUD、多条件筛选（分类/状态/搜索）、异步向量化处理（FastAPI `BackgroundTasks`）、重新索引、回收站（软删除 + 恢复）。支持 PDF / Word / Excel。
-- **分类与标签系统**：两级分类树 + 扁平标签，各自支持软删除。标签颜色可自定义。
-- **用户管理**：超管可查看用户列表、分配角色（`user` / `knowledge_admin` / `super_admin`）、停用账号。
-- **系统设置**：键值对配置表单（模型名称、Temperature、检索阈值、语音开关、日志保留天数），持久化至 `system_settings` 表。
-- **操作日志（Audit Log）**：所有后台管理操作（文档上传/删除、用户角色变更、系统设置修改）写入 `audit_logs` 表，JSONB 存储变更详情。仅超级管理员可查看，不可编辑或删除。
-- **使用统计（Usage Logs）**：每次流式 AI 问答结束时记录用户、会话、查询摘要、附件标记。为后续成本核算和用户行为分析提供数据基础。
-
-#### 🛠️ 工程改进
-
-- **后端模块化**：单体 `api.py`（459 行）拆分为 `routers/` → `services/` → `core/` 三层架构，每层职责单一。
-  - `routers/`: `auth.py` · `chat.py` · `knowledge.py` · `admin.py` · `users.py`
-  - `services/`: `agent_service.py` · `rag_service.py` · `document_service.py` · `user_service.py` · `analytics_service.py`
-  - `core/`: `database.py` · `cache.py` · `milvus_client.py` · `embedding.py` · `security.py`
-- **前端现代化**：CDN Vue 3 Options API → Vite + Vue 3 Composition API + TypeScript + Vue Router 4 + Element Plus。84 个 `.vue` / `.ts` 文件，零 `any` 类型逃逸。
-- **统一响应格式**：所有接口返回 `{code: int, message: str, data: T | null}`。分页统一为 `{items: T[], total: int, page: int, page_size: int}`。异常由全局 handler 统一序列化。
-- **权限模型升级**：`Depends(get_current_user)` → `Depends(require_knowledge_admin)` → `Depends(require_super_admin)` 三级权限注入，路由声明即权限声明，消除分散的 `if role != 'admin'` 防御代码。
-- **数据库 7 张新表**：`documents` · `categories` · `tags` · `document_tags` · `system_settings` · `usage_logs` · `audit_logs`，全部通过 Alembic 自动生成迁移。
-- **索引策略**：对高频查询列（`documents.status + deleted_at`、`usage_logs.created_at`、`audit_logs.created_at` 等）建立复合索引。
-- **CORS 安全加固**：`allow_origins` 从 `["*"]` 改为环境变量 `CORS_ORIGINS` 控制，生产环境按需配置允许域名。
-- **部署容器化**：新增 `nginx/Dockerfile`、`backend/Dockerfile`，`docker compose up -d --build` 一键编排全部 5 个服务（Nginx + FastAPI + PostgreSQL + Redis + Milvus）。
-
-#### 🚀 v1.0.1 更新内容（2026-07-16）
-
-**AI & 对话**
-
-- **Agent 思考链可视化** — 工具调用、RAG 检索步骤实时展示，可折叠查看
-- **Loop Engineer 智能追问** — 参数不全时生成候选选项（回复数字即可），最多 3 轮追问后兜底回复
-- **会话自动总结** — 对话结束后取首条消息作为标题，支持重命名、删除
-- **历史会话按时间分组** — 今天 / 昨天 / 本周 / 本月 / 更早，相对时间戳
-- **省份级天气过滤** — 输入"河南"不直接查天气，先列出郑州、洛阳等候选城市
+**AI 对话**
+- Agent 思考链可视化 — 工具调用、RAG 检索步骤实时展示，可折叠
+- Loop Engineer — 参数不全时生成候选选项（回复数字），最多 3 轮追问
+- 会话自动总结 — 取首条消息为标题，支持重命名/删除，历史会话按时间分组
+- 智能检索 — AI 识别意图 → 按分类精准检索向量库
 
 **文档管理**
+- 文档 CRUD + 异步向量化 + 回收站
+- 分类体系 — 两级分类树，上传时选择 + 列表页分类筛选 Tab + 内联新建
+- 标签系统 — 每文档最多 5 标签，列表内联增删，上传时选择
 
-- **文档分类体系** — 上传时选分类，列表页彩色标签 + 分类筛选 Tab，上传弹窗内联新建分类
-- **文档标签系统** — 每文档最多 5 个标签，上传时选择，列表页内联增删，支持自定义新建标签
-- **全局搜索框** — 文档管理、分类标签页均支持关键词搜索
-
-**仪表盘**
-
-- **3 张新统计图**：每日上传类别趋势（折线）、标签使用趋势（折线）、文件类别分布（环形饼图）
-- 每 30 秒自动刷新数据
+**管理后台**
+- 仪表盘 — 文档总数/今日上传/问答量 + 查询趋势折线图 + 类别/标签趋势折线图 + 类别饼图，每 30s 自动刷新
+- 用户管理 — 列表/角色分配/停用
+- 系统设置 — KV 配置持久化至 `system_settings`
+- 操作日志 — 所有管理操作写入 `audit_logs` (JSONB)，只读
 
 **用户**
-
-- **开放注册** — 用户名 + 昵称 + 邮箱，默认 `user` 角色
-- **自助修改密码** — 右上角下拉菜单入口
+- 开放注册（用户名 + 昵称 + 邮箱）+ 自助改密
 
 **UI**
+- 全站暗色主题 — 深色侧边栏 + 毛玻璃顶栏
+- DeepSeek 风格聊天页 — 青紫渐变气泡 + 思考过程展示
 
-- **全站暗色主题** — GitHub 风格深色侧边栏 + 毛玻璃顶栏 + 柔和内容区
-- **DeepSeek 风格聊天页** — v0.0.2 青紫渐变气泡 + 毛玻璃输入框
+#### 🛠️ 工程
+
+- 后端三层架构 — `routers/` → `services/` → `core/`
+- 前端 Vite + Vue 3 + TypeScript + Element Plus
+- 统一响应格式 `{code, message, data}` + 分页规范
+- 三级权限注入 — `get_current_user` / `require_knowledge_admin` / `require_super_admin`
+- 7 张新表 + 复合索引 + 软删除
+- Docker Compose 一键编排 5 服务（Nginx + FastAPI + PG + Redis + Milvus）
+- CORS 从环境变量读取
 
 #### ⚠️ 已知限制（Known Issues）
 
