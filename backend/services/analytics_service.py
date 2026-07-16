@@ -7,7 +7,7 @@ from core.cache import cache
 
 class AnalyticsService:
 
-    CACHE_TTL = 300  # 5 分钟
+    CACHE_TTL = 60  # 1 分钟
 
     @staticmethod
     def get_dashboard_stats() -> dict:

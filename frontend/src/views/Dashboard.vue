@@ -60,7 +60,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { getDashboardStats } from '@/api/admin'
 import DataState from '@/components/DataState.vue'
 import StatCard from '@/components/StatCard.vue'
@@ -85,5 +85,7 @@ async function fetchData() {
   }
 }
 
-onMounted(fetchData)
+let timer: ReturnType<typeof setInterval> | null = null
+onMounted(() => { fetchData(); timer = setInterval(fetchData, 30000) })
+onBeforeUnmount(() => { if (timer) clearInterval(timer) })
 </script>
