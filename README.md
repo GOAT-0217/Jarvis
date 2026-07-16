@@ -394,7 +394,7 @@ Jarvis/
 
 ## 更新日志
 
-### v1.0.1 — 2026-07-16 全栈架构重构
+### v1.0.1 — 2026-07-16 全栈化
 
 > **Release Theme:** Enterprise-Grade Fullstack Architecture
 
