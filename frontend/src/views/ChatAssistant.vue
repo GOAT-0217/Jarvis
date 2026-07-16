@@ -76,7 +76,7 @@ const titleDraft = ref('')
 
 const currentTitle = computed(() => {
   const s = sessions.value.find(x => x.session_id === currentSessionId.value)
-  return s?.title || currentSessionId.value
+  return s?.title || '新建对话'
 })
 
 function startEditTitle() {
@@ -171,6 +171,7 @@ async function handleSend(text: string) {
 .title-display {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   cursor: pointer;
   padding: 4px 8px;
@@ -182,7 +183,7 @@ async function handleSend(text: string) {
   background: rgba(94, 234, 212, 0.06);
 }
 .title-text {
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 600;
   color: #e2e8f0;
 }

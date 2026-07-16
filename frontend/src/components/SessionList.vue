@@ -13,7 +13,7 @@
         @click="$emit('select', s.session_id)"
       >
         <div class="session-info">
-          <span class="session-name">{{ s.title || s.session_id }}</span>
+          <span class="session-name">{{ s.title || '新建对话' }}</span>
           <span class="session-time">{{ formatTime(s.updated_at) }}</span>
         </div>
         <!-- 三点菜单 -->
