@@ -41,10 +41,10 @@ const isCollapsed = ref(false)
   height: 100vh;
 }
 
-/* ===== 侧边栏 — GitHub 暗色 ===== */
+/* ===== 侧边栏 ===== */
 .app-aside {
-  background: #24292f;
-  border-right: 1px solid #373e47;
+  background: var(--bg-sidebar);
+  border-right: 1px solid #2e3035;
   display: flex;
   flex-direction: column;
   transition: width 0.25s;
@@ -56,7 +56,7 @@ const isCollapsed = ref(false)
   align-items: center;
   gap: 12px;
   padding: 20px 20px 18px;
-  border-bottom: 1px solid #373e47;
+  border-bottom: 1px solid #2e3035;
 }
 .sidebar-brand--mini {
   justify-content: center;
@@ -67,14 +67,14 @@ const isCollapsed = ref(false)
   width: 34px;
   height: 34px;
   border-radius: 8px;
-  background: #fff;
+  background: var(--accent);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 .brand-icon-sm span {
-  color: #24292f;
+  color: #fff;
   font-size: 18px;
   font-weight: 800;
 }
@@ -82,7 +82,7 @@ const isCollapsed = ref(false)
 .brand-text {
   font-size: 17px;
   font-weight: 700;
-  color: #e6edf3;
+  color: var(--text-heading);
   letter-spacing: 2px;
   white-space: nowrap;
 }
@@ -91,8 +91,8 @@ const isCollapsed = ref(false)
   margin-top: auto;
   padding: 12px 20px;
   font-size: 11px;
-  color: #8b949e;
-  border-top: 1px solid #373e47;
+  color: var(--text-muted);
+  border-top: 1px solid #2e3035;
 }
 
 /* ===== 顶栏 ===== */
@@ -100,7 +100,7 @@ const isCollapsed = ref(false)
   height: 56px;
   padding: 0 20px;
   background: var(--bg-content);
-  border-bottom: 1px solid var(--border-card);
+  border-bottom: 1px solid var(--border-light);
   display: flex;
   align-items: center;
 }

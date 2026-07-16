@@ -18,7 +18,7 @@
         <el-icon><Delete /></el-icon>
       </el-button>
     </div>
-    <div v-if="!sessions.length" style="color: #6e7681; text-align: center; padding: 24px">
+    <div v-if="!sessions.length" style="color: var(--text-muted); text-align: center; padding: 24px">
       暂无会话
     </div>
   </div>
@@ -44,8 +44,8 @@ defineEmits<{
   display: flex; justify-content: space-between; align-items: center;
   padding: 8px 12px; cursor: pointer; border-radius: 4px;
 }
-.session-item { color: #8b949e; }
-.session-item:hover { background: rgba(255,255,255,0.06); color: #e6edf3; }
-.session-item.active { background: #0969da; color: #fff; }
+.session-item { color: var(--text-secondary); }
+.session-item:hover { background: var(--bg-hover); color: var(--text-body); }
+.session-item.active { background: var(--accent); color: #fff; }
 .session-item.active .session-name { color: #fff; }
 </style>

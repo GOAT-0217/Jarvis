@@ -29,6 +29,6 @@ const renderedContent = computed(() => {
 .message-row { display: flex; margin-bottom: 16px; }
 .message-row.user { justify-content: flex-end; }
 .bubble { max-width: 70%; padding: 10px 14px; border-radius: 8px; }
-.bubble.user { background: var(--accent); color: white; }
-.bubble.assistant { background: #f4f4f5; }
+.bubble.user { background: var(--accent); color: #fff; }
+.bubble.assistant { background: #383a40; color: var(--text-body); }
 </style>

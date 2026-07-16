@@ -72,13 +72,12 @@ const { isAdmin, isSuperAdmin } = useAuth()
 .sidebar-menu :deep(.el-menu-item) {
   margin: 2px 0;
   border-radius: 6px;
-  color: #e6edf3 !important;
+  color: var(--text-secondary) !important;
   background: transparent !important;
   transition: background 0.15s;
   height: 40px;
   line-height: 40px;
   font-size: 15px;
-  font-weight: 400;
 }
 
 .sidebar-menu :deep(.el-menu-item .el-icon) {
@@ -86,22 +85,23 @@ const { isAdmin, isSuperAdmin } = useAuth()
 }
 
 .sidebar-menu :deep(.el-menu-item:hover) {
-  background: rgba(255, 255, 255, 0.08) !important;
+  background: var(--bg-hover) !important;
+  color: var(--text-body) !important;
 }
 
 .sidebar-menu :deep(.el-menu-item.is-active) {
-  background: rgba(255, 255, 255, 0.12) !important;
+  background: var(--bg-active) !important;
+  color: var(--accent) !important;
   font-weight: 600;
-  color: #fff !important;
 }
 
 .sidebar-menu :deep(.el-menu-item.is-active .el-icon) {
-  color: #fff !important;
+  color: var(--accent) !important;
 }
 
 .menu-divider {
   height: 1px;
   margin: 4px 8px;
-  background: #373e47;
+  background: #2e3035;
 }
 </style>
