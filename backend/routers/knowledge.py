@@ -73,13 +73,17 @@ async def upload_document(
     doc = service.create_document_record(db, filename, str(file_path), len(content), file_type, current_user.id, category_id)
 
     # 关联标签
+    tag_names: list[str] = []
     if tag_ids:
-        from models import DocumentTag
+        from models import DocumentTag, Tag
         for tid in tag_ids.split(",")[:5]:
             tid = tid.strip()
             if tid:
                 dt = DocumentTag(document_id=doc.id, tag_id=tid)
                 db.add(dt)
+                tag_obj = db.query(Tag).filter(Tag.id == tid).first()
+                if tag_obj:
+                    tag_names.append(tag_obj.name)
         db.commit()
 
     background_tasks.add_task(service.process_document_async, doc.id, str(file_path), filename, category_id)
@@ -88,7 +92,7 @@ async def upload_document(
         id=doc.id, filename=doc.filename, file_type=doc.file_type, file_size=doc.file_size,
         status=doc.status, char_count=0, chunk_count=0,
         uploaded_by=str(doc.uploaded_by) if doc.uploaded_by else None,
-        created_at=doc.created_at.isoformat(), tags=[],
+        created_at=doc.created_at.isoformat(), tags=tag_names,
     ))
 
 

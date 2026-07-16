@@ -53,19 +53,34 @@
                 </el-select>
               </template>
             </el-table-column>
-            <el-table-column label="标签" width="180">
+            <el-table-column label="标签" width="200">
               <template #default="{ row }">
                 <div class="tag-cell">
-                  <el-tag
-                    v-for="t in (row.tags || [])"
-                    :key="t"
-                    size="small"
-                    closable
-                    @close="removeTag(row, t)"
-                    style="margin: 1px 2px"
+                  <template v-for="(t, i) in (row.tags || [])" :key="t">
+                    <el-tag
+                      v-if="i < 3 || tagExpanded[row.id]"
+                      size="small"
+                      closable
+                      @close="removeTag(row, t)"
+                      style="margin: 1px 2px"
+                    >
+                      {{ t }}
+                    </el-tag>
+                  </template>
+                  <span
+                    v-if="(row.tags || []).length > 3 && !tagExpanded[row.id]"
+                    class="tag-toggle"
+                    @click="tagExpanded[row.id] = true"
                   >
-                    {{ t }}
-                  </el-tag>
+                    +{{ (row.tags || []).length - 3 }}
+                  </span>
+                  <span
+                    v-if="tagExpanded[row.id]"
+                    class="tag-toggle"
+                    @click="tagExpanded[row.id] = false"
+                  >
+                    收起
+                  </span>
                   <el-select
                     v-if="(row.tags || []).length < 5"
                     model-value=""
@@ -74,12 +89,7 @@
                     style="width: 36px"
                     @change="(val: string) => addTag(row, val)"
                   >
-                    <el-option
-                      v-for="t in availableTags(row)"
-                      :key="t.id"
-                      :label="t.name"
-                      :value="t.id"
-                    />
+                    <el-option v-for="t in availableTags(row)" :key="t.id" :label="t.name" :value="t.id" />
                   </el-select>
                 </div>
               </template>
@@ -148,6 +158,7 @@ import UploadDialog from '@/components/UploadDialog.vue'
 const CAT_COLORS = ['#5eead4', '#a78bfa', '#f59e0b', '#3b82f6', '#ef4444', '#22c55e', '#ec4899', '#6366f1']
 
 const searchText = ref('')
+const tagExpanded = ref<Record<string, boolean>>({})
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 function onSearch() {
   if (searchTimer) clearTimeout(searchTimer)
@@ -306,4 +317,10 @@ onMounted(() => { loadCategories(); loadTags(); fetchData() })
   display: inline-block; padding: 2px 8px; border-radius: 4px;
   font-size: 12px; font-weight: 500; border: 1px solid;
 }
+.tag-cell { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; }
+.tag-toggle {
+  font-size: 11px; color: #5eead4; cursor: pointer; white-space: nowrap;
+  padding: 2px 6px; border-radius: 4px; background: rgba(94, 234, 212, 0.08);
+}
+.tag-toggle:hover { background: rgba(94, 234, 212, 0.18); }
 </style>
