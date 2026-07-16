@@ -179,7 +179,7 @@ async def delete_session(session_id: str, current_user: User = Depends(get_curre
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/chat", response_model=ChatResponse)
+@router.post("", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest, current_user: User = Depends(get_current_user)):
     """
     该接口处理聊天请求：
@@ -212,7 +212,7 @@ async def chat_endpoint(request: ChatRequest, current_user: User = Depends(get_c
         raise HTTPException(status_code=500, detail=message)
 
 
-@router.post("/chat/stream")
+@router.post("/stream")
 async def chat_stream_endpoint(request: ChatRequest, current_user: User = Depends(get_current_user)):
     """跟 Agent 对话 (流式)
         该函数实现流式聊天接口。
