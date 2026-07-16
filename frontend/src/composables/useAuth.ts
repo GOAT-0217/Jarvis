@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { login as apiLogin, register as apiRegister, getMe } from '@/api/auth'
+import { login as apiLogin, register as apiRegister } from '@/api/auth'
 import type { LoginParams, RegisterParams, CurrentUserData } from '@/api/auth'
 
 const token = ref<string>(localStorage.getItem('accessToken') || '')

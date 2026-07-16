@@ -25,7 +25,7 @@ const emit = defineEmits<{ send: [text: string]; stop: [] }>()
 
 const text = ref('')
 const listening = ref(false)
-let recognition: SpeechRecognition | null = null
+let recognition: any = null
 
 function handleSend() {
   if (!text.value.trim()) return

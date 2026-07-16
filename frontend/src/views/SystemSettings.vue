@@ -13,7 +13,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, reactive } from 'vue'
+import { onMounted, reactive } from 'vue'
 import { getSettings, updateSettings } from '@/api/admin'
 
 const settings = reactive<any[]>([])
