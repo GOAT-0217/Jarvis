@@ -120,6 +120,7 @@ function handleCommand(cmd: string) {
 
 .header-breadcrumb {
   margin-left: 8px;
+  font-size: 14px;
 }
 .header-breadcrumb :deep(.el-breadcrumb__inner) {
   color: var(--text-secondary) !important;
@@ -161,6 +162,6 @@ function handleCommand(cmd: string) {
 }
 
 .user-name {
-  font-size: 14px;
+  font-size: 15px;
 }
 </style>

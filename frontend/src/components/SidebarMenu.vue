@@ -75,8 +75,13 @@ const { isAdmin, isSuperAdmin } = useAuth()
   color: var(--text-secondary) !important;
   background: transparent !important;
   transition: all 0.2s;
-  height: 42px;
-  line-height: 42px;
+  height: 48px;
+  line-height: 48px;
+  font-size: 15px;
+}
+
+.sidebar-menu :deep(.el-menu-item .el-icon) {
+  font-size: 20px;
 }
 .sidebar-menu :deep(.el-menu-item:hover) {
   background: rgba(64, 158, 255, 0.08) !important;

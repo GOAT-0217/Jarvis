@@ -34,7 +34,7 @@ defineProps<{ title: string; value: number; color: string }>()
 }
 
 .stat-title {
-  font-size: 13px;
-  color: var(--text-muted);
+  font-size: 14px;
+  color: var(--text-secondary);
 }
 </style>
