@@ -79,6 +79,8 @@
 
 ### 1. 配置环境变量
 
+> 以下所有命令均在**项目根目录** `Jarvis/` 下执行。
+
 ```bash
 cp .env.example .env
 ```
@@ -109,6 +111,8 @@ docker compose --profile dev up -d
 
 ## 生产部署
 
+> 以下所有命令均在**项目根目录** `Jarvis/` 下执行。
+
 ### 一键部署
 
 ```bash
@@ -121,7 +125,6 @@ docker compose ps  # 确认全部服务均为 Up
 ```
 
 访问 `http://localhost`（Nginx :80 统一入口）。
-```
 
 ### 访问
 
