@@ -88,7 +88,7 @@ const { isAdmin, isSuperAdmin } = useAuth()
   color: var(--text-primary) !important;
 }
 .sidebar-menu :deep(.el-menu-item.is-active) {
-  background: linear-gradient(135deg, rgba(64, 158, 255, 0.15) 0%, rgba(54, 207, 201, 0.08) 100%) !important;
+  background: linear-gradient(135deg, rgba(91, 158, 255, 0.18) 0%, rgba(125, 184, 255, 0.08) 100%) !important;
   color: #fff !important;
   box-shadow: inset 0 0 0 1px var(--border-active);
 }

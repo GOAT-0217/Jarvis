@@ -152,7 +152,7 @@ function handleCommand(cmd: string) {
   width: 30px;
   height: 30px;
   border-radius: 8px;
-  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-teal) 100%);
+  background: linear-gradient(135deg, #5B9EFF 0%, #7DB8FF 100%);
   display: flex;
   align-items: center;
   justify-content: center;

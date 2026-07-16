@@ -45,7 +45,7 @@ const isCollapsed = ref(false)
 }
 
 .app-aside {
-  background: var(--bg-sidebar);
+  background: linear-gradient(180deg, #1b2335 0%, #1d273a 50%, #1a2234 100%);
   border-right: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;
@@ -69,7 +69,7 @@ const isCollapsed = ref(false)
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-teal) 100%);
+  background: linear-gradient(135deg, #5B9EFF 0%, #7DB8FF 100%);
   display: flex;
   align-items: center;
   justify-content: center;

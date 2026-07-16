@@ -235,7 +235,7 @@ function particleStyle(n: number) {
   height: 56px;
   margin: 0 auto 16px;
   border-radius: 14px;
-  background: linear-gradient(135deg, #409EFF 0%, #36cfc9 100%);
+  background: linear-gradient(135deg, #5B9EFF 0%, #7DB8FF 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -293,7 +293,7 @@ function particleStyle(n: number) {
   height: 44px;
   border-radius: 10px !important;
   border: none !important;
-  background: linear-gradient(135deg, #409EFF 0%, #36cfc9 100%) !important;
+  background: linear-gradient(135deg, #5B9EFF 0%, #7DB8FF 100%) !important;
   font-size: 15px;
   font-weight: 600;
   letter-spacing: 4px;
