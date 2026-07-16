@@ -26,6 +26,10 @@ export function deleteSession(sessionId: string) {
   return client.delete<any, { data: any }>(`/chat/sessions/${sessionId}`)
 }
 
+export function renameSession(sessionId: string, title: string) {
+  return client.put<any, { data: { title: string } }>(`/chat/sessions/${sessionId}/rename`, { title })
+}
+
 export interface ChatStreamParams {
   message: string
   session_id: string

@@ -242,6 +242,29 @@ class ConversationStorage:
         finally:
             db.close()
 
+    def rename_session(self, user_id: str, session_id: str, title: str) -> bool:
+        """重命名会话标题，返回是否成功。"""
+        db = SessionLocal()
+        try:
+            user = db.query(User).filter(User.username == user_id).first()
+            if not user:
+                return False
+            session = (
+                db.query(ChatSession)
+                .filter(ChatSession.user_id == user.id, ChatSession.session_id == session_id)
+                .first()
+            )
+            if not session:
+                return False
+            meta = dict(session.metadata_json or {})
+            meta["title"] = title
+            session.metadata_json = meta
+            db.commit()
+            cache.delete(self._sessions_cache_key(user_id))
+            return True
+        finally:
+            db.close()
+
 
 
 def create_agent_instance():

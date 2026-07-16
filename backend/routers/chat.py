@@ -180,6 +180,18 @@ async def delete_session(session_id: str, current_user: User = Depends(get_curre
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.put("/sessions/{session_id}/rename")
+async def rename_session(session_id: str, body: dict, current_user: User = Depends(get_current_user)):
+    """重命名当前用户的指定会话"""
+    title = (body.get("title") or "").strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="标题不能为空")
+    ok = storage.rename_session(current_user.username, session_id, title)
+    if not ok:
+        raise HTTPException(status_code=404, detail="会话不存在")
+    return {"code": 0, "message": "success", "data": {"title": title}}
+
+
 @router.post("", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest, current_user: User = Depends(get_current_user)):
     """

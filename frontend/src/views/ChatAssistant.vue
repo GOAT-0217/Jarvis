@@ -10,6 +10,24 @@
       />
     </div>
     <div class="chat-main">
+      <!-- 当前会话标题栏 -->
+      <div class="chat-title-bar">
+        <div v-if="editingTitle" class="title-edit">
+          <input
+            v-model="titleDraft"
+            ref="titleInput"
+            class="title-input"
+            maxlength="50"
+            @keydown.enter="saveTitle"
+            @keydown.escape="cancelEditTitle"
+            @blur="saveTitle"
+          />
+        </div>
+        <div v-else class="title-display" @click="startEditTitle">
+          <span class="title-text">{{ currentTitle }}</span>
+          <el-icon class="title-edit-icon"><Edit /></el-icon>
+        </div>
+      </div>
       <div class="chat-messages" ref="messagesContainer">
         <MessageBubble
           v-for="msg in messages"
@@ -32,9 +50,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useChat } from '@/composables/useChat'
+import { renameSession } from '@/api/chat'
+import { Edit } from '@element-plus/icons-vue'
 import SessionList from '@/components/SessionList.vue'
 import MessageBubble from '@/components/MessageBubble.vue'
 import ChatInput from '@/components/ChatInput.vue'
@@ -47,7 +67,40 @@ const {
 } = useChat()
 
 const messagesContainer = ref<HTMLElement>()
+const titleInput = ref<HTMLInputElement>()
 const currentSessionId = ref<string>('session_' + Date.now())
+
+// 标题编辑
+const editingTitle = ref(false)
+const titleDraft = ref('')
+
+const currentTitle = computed(() => {
+  const s = sessions.value.find(x => x.session_id === currentSessionId.value)
+  return s?.title || currentSessionId.value
+})
+
+function startEditTitle() {
+  titleDraft.value = currentTitle.value
+  editingTitle.value = true
+  nextTick(() => titleInput.value?.focus())
+}
+
+async function saveTitle() {
+  editingTitle.value = false
+  const newTitle = titleDraft.value.trim()
+  if (!newTitle || newTitle === currentTitle.value) return
+  try {
+    await renameSession(currentSessionId.value, newTitle)
+    const s = sessions.value.find(x => x.session_id === currentSessionId.value)
+    if (s) s.title = newTitle
+  } catch (e: any) {
+    // 静默失败
+  }
+}
+
+function cancelEditTitle() {
+  editingTitle.value = false
+}
 
 onMounted(() => {
   loadSessions()
@@ -77,6 +130,8 @@ function newChat() {
 
 async function handleSend(text: string) {
   await sendMessage(text, currentSessionId.value)
+  // 刷新会话列表以获取新标题
+  await loadSessions()
   await nextTick()
   if (messagesContainer.value) {
     messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
@@ -105,6 +160,57 @@ async function handleSend(text: string) {
   display: flex;
   flex-direction: column;
 }
+
+/* 标题栏 */
+.chat-title-bar {
+  padding: 12px 28px;
+  border-bottom: 1px solid rgba(94, 234, 212, 0.08);
+  background: rgba(20, 26, 40, 0.6);
+  backdrop-filter: blur(10px);
+}
+.title-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 4px 8px;
+  margin: -4px -8px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+.title-display:hover {
+  background: rgba(94, 234, 212, 0.06);
+}
+.title-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+.title-edit-icon {
+  font-size: 13px;
+  color: #6d6f78;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.title-display:hover .title-edit-icon { opacity: 1; }
+
+.title-edit {
+  display: flex;
+  align-items: center;
+}
+.title-input {
+  width: 100%;
+  background: rgba(30, 36, 51, 0.8);
+  border: 1px solid #5eead4;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #e2e8f0;
+  outline: none;
+  font-family: inherit;
+}
+.title-input::placeholder { color: #6d6f78; }
 
 .chat-messages {
   flex: 1;
